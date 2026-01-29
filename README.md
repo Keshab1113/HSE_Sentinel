@@ -1,4 +1,6 @@
-# 🛡️ HSE Sentinel
+# 🛡️ ASES
+
+**Advanced Safety and Efficiency Systems**
 
 **AI-Powered Predictive HSE Intelligence Platform**
 
@@ -8,9 +10,9 @@
 
 ## 📌 Overview
 
-**HSE Sentinel** is a **next-generation AI-driven Health, Safety & Environment (HSE) intelligence platform** designed to **predict risks before incidents occur**, not just record them after the fact.
+**ASES (Advanced Safety and Efficiency Systems)** is a **next-generation AI-driven Health, Safety & Environment (HSE) intelligence platform** designed to **predict risks before incidents occur**, not just record them after the fact.
 
-Unlike traditional HSE systems that focus on static reporting and compliance checklists, **HSE Sentinel combines AI reasoning, predictive analytics, behavioral insights, and real-time monitoring** to proactively prevent injuries, environmental damage, asset failures, and financial losses.
+Unlike traditional HSE systems that focus on static reporting and compliance checklists, **ASES combines AI reasoning, predictive analytics, behavioral insights, and real-time monitoring** to proactively prevent injuries, environmental damage, asset failures, and financial losses.
 
 The platform is built for **enterprise-scale, multi-site organizations**, with **strict role-based access**, **leading & lagging indicator intelligence**, **predictive alerts**, and **executive-ready decision support**.
 
@@ -28,7 +30,7 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 
 ---
 
-## 🧩 Core Capabilities (What Makes HSE Sentinel Different)
+## 🧩 Core Capabilities
 
 ### 🧠 AI Intelligence Engine
 
@@ -42,7 +44,7 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 
 ### 🔮 Predictive Risk & Early Warning System
 
-* Detects risk using:
+* Risk detection using:
 
   * Leading indicator degradation
   * Repeating incident patterns
@@ -58,7 +60,7 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 * Leading vs Lagging indicator trends
 * Predictive risk heatmaps (site / team / activity based)
 * Dynamic **Safety Score (0–100)** per site, team, or operation
-* Executive-friendly KPIs backed by raw evidence
+* Executive-friendly KPIs backed by auditable evidence
 
 ---
 
@@ -87,7 +89,7 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 * Training master & assignments
 * Competency assessments
 * Expiry & compliance tracking
-* **AI-driven training gap detection**
+* AI-driven training gap detection
 
 ---
 
@@ -96,8 +98,8 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 * Configurable inspection templates
 * Mobile-friendly checklists
 * Automated scoring
-* Findings → corrective task linkage
-* Audit trend & repeat-failure detection
+* Findings linked to corrective actions
+* Repeat-failure & trend analysis
 
 ---
 
@@ -105,10 +107,10 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 
 * Full Job Safety Analysis lifecycle
 * Hazard identification & risk matrix
-* Control measures (engineering / admin / PPE)
-* Approval workflow
-* Employee acknowledgement before work
-* **AI-assisted hazard & control recommendations**
+* Control measures (engineering / administrative / PPE)
+* Approval workflows
+* Mandatory employee acknowledgement
+* AI-assisted hazard & control recommendations
 
 ---
 
@@ -117,18 +119,18 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 * Equipment registry & safety-critical tagging
 * Preventive maintenance schedules
 * Maintenance compliance tracking
-* Equipment failure & unsafe condition logging
-* Predictive maintenance risk hooks
+* Unsafe condition & failure logging
+* Predictive maintenance intelligence hooks
 
 ---
 
 ### 🚗 Vehicle Safety Management
 
 * Vehicle & driver registry
-* Trip logging & transport safety tracking
+* Trip logging & transport risk tracking
 * Vehicle incidents & near misses
 * Driver risk profiling
-* Predictive transport risk alerts
+* Predictive transport safety alerts
 
 ---
 
@@ -137,18 +139,18 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 * Injury-linked compensation claims
 * Medical, wage & rehabilitation cost tracking
 * Lost workdays & return-to-work monitoring
-* Cost intelligence for executives
-* Claim risk & escalation prediction
+* Executive cost & exposure intelligence
+* Claim risk escalation prediction
 
 ---
 
-### 👔 Management Engagement (Leadership in Safety)
+### 👔 Management Engagement
 
 * Safety walks & toolbox talks
 * Management safety observations
 * Leadership engagement scoring
 * Behavior-based corrective actions
-* ISO 45001 Clause 5 compliance evidence
+* ISO 45001 Clause 5 leadership evidence
 
 ---
 
@@ -156,7 +158,7 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 
 * Safety suggestions & feedback
 * Near-miss quality scoring (AI-assisted)
-* Safety committee participation
+* Safety committee participation tracking
 * Safety culture score & trends
 * Engagement heatmaps & predictive insights
 
@@ -164,22 +166,22 @@ The platform is built for **enterprise-scale, multi-site organizations**, with *
 
 ### 🧑‍💼 Executive AI Summaries
 
-* Natural language safety summaries
-* Risk posture overview
+* Natural language executive summaries
+* Risk posture & trend insights
 * Cost & loss visibility
-* 30-day forward-looking safety outlook
-* Board-level, decision-ready insights
+* 30-day forward-looking risk outlook
+* Board-level, decision-ready intelligence
 
 ---
 
 ## 👥 User Roles & Access Control
 
-| Role            | Capabilities                                                 |
-| --------------- | ------------------------------------------------------------ |
-| **super_admin** | Global system access, AI configuration, enterprise analytics |
-| **group_admin** | Organization & site-level oversight, approvals, analytics    |
-| **team_admin**  | Task management, inspections, JSA, team safety               |
-| **employee**    | Incident reporting, task execution, participation & feedback |
+| Role            | Capabilities                                          |
+| --------------- | ----------------------------------------------------- |
+| **super_admin** | Global access, AI configuration, enterprise analytics |
+| **group_admin** | Organization & site oversight, approvals, analytics   |
+| **team_admin**  | Task management, inspections, JSA, team safety        |
+| **employee**    | Incident reporting, task execution, participation     |
 
 > 🔐 All permissions are enforced **backend-first** for security and auditability.
 
@@ -207,6 +209,24 @@ Data Layer
 
 ---
 
+## 📁 Asset Storage (Important)
+
+All uploaded assets are stored **exclusively on FTP**, including:
+
+* Documents (PDF, Word, Excel)
+* Images
+* Audio & video recordings
+* Inspection evidence
+* JSA & audit attachments
+
+Assets are uploaded using a dedicated FTP streaming utility and stored as **secure URLs**, ensuring:
+
+* Scalability for large files
+* Separation of application & storage
+* Audit-friendly evidence handling
+
+---
+
 ## 🧠 AI Stack
 
 | Purpose                   | Technology                     |
@@ -226,8 +246,8 @@ Data Layer
 * Express.js
 * MySQL
 * JWT Authentication
-* Multer (file uploads)
-* Nodemailer (alerts & notifications)
+* Multer (streaming uploads)
+* Nodemailer (notifications)
 
 ### Frontend
 
@@ -244,7 +264,7 @@ Data Layer
 ### Backend
 
 ```bash
-cd hse-backend
+cd backend
 npm install
 npm run dev
 ```
@@ -252,7 +272,7 @@ npm run dev
 ### Frontend
 
 ```bash
-cd hse-frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -264,11 +284,16 @@ PORT=5000
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=yourpassword
-DB_NAME=hse_system
+DB_NAME=ases_system
 JWT_SECRET=your_secret_key
 
-ALERT_EMAIL=your_email@gmail.com
-ALERT_EMAIL_PASS=your_app_password
+FTP_HOST=...
+FTP_USER=...
+FTP_PASS=...
+FTP_PORT=...
+FTP_SECURE=...
+FTP_REMOTE_DIR=...
+FTP_BASE_URL=...
 ```
 
 ---
@@ -280,7 +305,7 @@ ALERT_EMAIL_PASS=your_app_password
 * [x] Role-based dashboards
 * [x] Safety scoring engine
 * [x] Training, Audits, JSA
-* [x] Equipment, Vehicle & Workers’ Comp
+* [x] Equipment, Vehicle & Workers’ Compensation
 * [x] Management engagement & safety culture
 * [ ] Mobile-first employee app
 * [ ] Regulator auto-submission
@@ -316,7 +341,7 @@ Please open an issue or submit a pull request.
 
 ## 📬 Contact
 
-**Project:** HSE Sentinel
+**Project:** ASES (Advanced Safety and Efficiency Systems)
 **Purpose:** Predictive HSE Intelligence
 **Status:** Enterprise-ready / Active Development
 
@@ -324,4 +349,6 @@ Please open an issue or submit a pull request.
 
 ### 🏁 Final Note
 
-> **HSE Sentinel doesn’t just manage safety — it predicts, prevents, and proves it.**
+> **ASES doesn’t just manage safety — it predicts, prevents, and proves it.**
+
+---
