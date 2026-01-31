@@ -30,43 +30,46 @@ import {
   ArrowLeft,
   CheckCircle,
   ChevronRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
+import api from "../../api/axios"; // Import axios instance
 
-// Mock data for groups and teams
+// Mock data for groups and teams - Using numeric IDs to match database
 const mockGroupsData = [
   {
-    id: "grp_001",
+    id: 1, // Changed to number
     name: "Global Manufacturing Corp",
     code: "GMC-2024",
     teams: [
-      { id: "team_gmc_001", name: "Production Floor", code: "GMC-PROD" },
-      { id: "team_gmc_002", name: "Quality Control", code: "GMC-QUALITY" },
-      { id: "team_gmc_003", name: "Maintenance", code: "GMC-MAINT" },
-      { id: "team_gmc_004", name: "Warehouse", code: "GMC-WHSE" },
+      { id: 1, name: "Production Floor", code: "GMC-PROD" }, // Changed to number
+      { id: 2, name: "Quality Control", code: "GMC-QUALITY" },
+      { id: 3, name: "Maintenance", code: "GMC-MAINT" },
+      { id: 4, name: "Warehouse", code: "GMC-WHSE" },
     ],
   },
   {
-    id: "grp_002",
+    id: 2,
     name: "Tech Solutions Inc",
     code: "TSI-2024",
     teams: [
-      { id: "team_tsi_001", name: "Site Operations", code: "TSI-OPS" },
-      { id: "team_tsi_002", name: "Safety Department", code: "TSI-SAFETY" },
-      { id: "team_tsi_003", name: "Engineering", code: "TSI-ENG" },
+      { id: 5, name: "Site Operations", code: "TSI-OPS" },
+      { id: 6, name: "Safety Department", code: "TSI-SAFETY" },
+      { id: 7, name: "Engineering", code: "TSI-ENG" },
     ],
   },
   {
-    id: "grp_003",
+    id: 3,
     name: "Energy & Utilities Ltd",
     code: "EUL-2024",
     teams: [
-      { id: "team_eul_001", name: "Field Operations", code: "EUL-FIELD" },
-      { id: "team_eul_002", name: "Plant Safety", code: "EUL-PLANT" },
-      { id: "team_eul_003", name: "Distribution", code: "EUL-DIST" },
-      { id: "team_eul_004", name: "Maintenance Crew", code: "EUL-MAINT" },
-      { id: "team_eul_005", name: "Emergency Response", code: "EUL-ERT" },
+      { id: 8, name: "Field Operations", code: "EUL-FIELD" },
+      { id: 9, name: "Plant Safety", code: "EUL-PLANT" },
+      { id: 10, name: "Distribution", code: "EUL-DIST" },
+      { id: 11, name: "Maintenance Crew", code: "EUL-MAINT" },
+      { id: 12, name: "Emergency Response", code: "EUL-ERT" },
     ],
   },
 ];
@@ -77,6 +80,8 @@ export default function Signup() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [availableTeams, setAvailableTeams] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [form, setForm] = useState({
     // Common fields
     name: "",
@@ -119,66 +124,123 @@ export default function Signup() {
     setError("");
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
   const validateForm = () => {
+    // Clear previous errors
+    setError("");
+
+    // Basic validations
     if (!form.name.trim()) {
       setError("Full name is required");
       return false;
     }
+    
     if (!form.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       setError("Please enter a valid work email");
       return false;
     }
-    if (form.password.length < 8) {
-      setError("Password must be at least 8 characters");
+    
+    // Password validation
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(form.password)) {
+      setError("Password must be at least 8 characters with 1 uppercase, 1 lowercase, 1 number, and 1 special character (@$!%*?&)");
       return false;
     }
+    
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match");
       return false;
     }
-    if (signupType === "employee" && (!form.groupId || !form.teamId)) {
-      setError("Please select both group and team");
-      return false;
+    
+    // Type-specific validations
+    if (signupType === "employee") {
+      if (!form.groupId) {
+        setError("Please select a group");
+        return false;
+      }
+      if (!form.teamId) {
+        setError("Please select a team");
+        return false;
+      }
     }
-    if (signupType === "team" && (!form.groupId || !form.teamName)) {
-      setError("Please select group and enter team name");
-      return false;
+    
+    if (signupType === "team") {
+      if (!form.groupId) {
+        setError("Please select a group");
+        return false;
+      }
+      if (!form.teamName?.trim()) {
+        setError("Please enter team name");
+        return false;
+      }
     }
+    
+    if (signupType === "group") {
+      if (!form.groupName?.trim()) {
+        setError("Please enter group name");
+        return false;
+      }
+    }
+
     return true;
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
 
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          signupType,
-          ...form,
-          confirmPassword: undefined,
-        }),
-      });
+  try {
+    // Prepare data for API
+    const payload = {
+      signupType,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      mobile: form.mobile.trim(),
+      position: form.position.trim(),
+      employeeId: form.employeeId.trim(),
+      workLocation: form.workLocation.trim(),
+      groupId: form.groupId || null,
+      teamId: form.teamId || null,
+      groupName: form.groupName.trim() || null,
+      teamName: form.teamName.trim() || null,
+    };
 
-      const data = await response.json();
+    // Use axios for API call
+    const response = await api.post("/auth/register", payload);
 
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
-      }
-
+    if (response.data.success) {
       setSuccess(true);
-    } catch (err) {
-      setError(err.message || "An error occurred during registration");
-    } finally {
-      setLoading(false);
+    } else {
+      setError(response.data.message || "Registration failed");
     }
-  };
+  } catch (err) {
+    // Handle axios errors
+    if (err.response) {
+      // Server responded with error status
+      setError(err.response.data.message || "Registration failed");
+    } else if (err.request) {
+      // Request was made but no response
+      setError("Network error. Please check your connection.");
+    } else {
+      // Something else happened
+      setError(err.message || "An error occurred during registration");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getSignupTypeLabel = (type) => {
     const labels = {
@@ -188,6 +250,23 @@ export default function Signup() {
     };
     return labels[type] || type;
   };
+
+  // Password strength indicator
+  const getPasswordStrength = (password) => {
+    if (!password) return { score: 0, label: "" };
+    
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[@$!%*?&]/.test(password)) score++;
+    
+    const labels = ["", "Very Weak", "Weak", "Fair", "Good", "Strong"];
+    return { score, label: labels[score] };
+  };
+
+  const passwordStrength = getPasswordStrength(form.password);
 
   if (success) {
     return (
@@ -207,7 +286,7 @@ export default function Signup() {
                   Your account has been created and is pending approval.
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-500">
-                  You will receive a confirmation email within 24 hours.
+                  You will receive a confirmation email once approved by your administrator.
                 </p>
               </div>
 
@@ -219,6 +298,16 @@ export default function Signup() {
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                     {form.name} • {form.email}
                   </p>
+                  {form.groupName && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      Group: {form.groupName}
+                    </p>
+                  )}
+                  {form.teamName && (
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                      Team: {form.teamName}
+                    </p>
+                  )}
                 </div>
 
                 <Button asChild className="w-full">
@@ -260,7 +349,7 @@ export default function Signup() {
           <div className="flex flex-col items-center">
             <div className="relative mb-4">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-sky-100 to-emerald-100 dark:from-sky-900/30 dark:to-emerald-900/30 flex items-center justify-center border border-sky-200 dark:border-sky-800">
-                <img src="/only_logo.png" alt="" className="h-[60%]"/>
+                <img src="/only_logo.png" alt="" className="h-[60%]" />
               </div>
               <Building className="absolute -bottom-2 -right-2 w-8 h-8 p-1.5 bg-emerald-500 text-white rounded-full border-2 border-white dark:border-slate-900" />
             </div>
@@ -348,7 +437,7 @@ export default function Signup() {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                   <Building className="w-5 h-5 text-emerald-600" />
-                  Group Details
+                  Organization Details
                 </h3>
 
                 {/* Group Selection/Input */}
@@ -361,7 +450,7 @@ export default function Signup() {
                         handleSelectChange("groupId", value)
                       }
                     >
-                      <SelectTrigger className="h-11">
+                      <SelectTrigger className="h-11 w-full">
                         <SelectValue placeholder="Choose your group" />
                       </SelectTrigger>
                       <SelectContent>
@@ -469,7 +558,7 @@ export default function Signup() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name" className="text-sm font-medium">
-                        Full Name
+                        Full Name *
                       </Label>
                       <Input
                         id="name"
@@ -484,7 +573,7 @@ export default function Signup() {
 
                     <div className="space-y-2">
                       <Label htmlFor="email" className="text-sm font-medium">
-                        Work Email
+                        Work Email *
                       </Label>
                       <Input
                         id="email"
@@ -569,47 +658,115 @@ export default function Signup() {
                   </div>
 
                   {/* Passwords */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    {/* Password */}
                     <div className="space-y-2">
                       <Label htmlFor="password" className="text-sm font-medium">
-                        Password
+                        Password *
                       </Label>
-                      <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        placeholder="Minimum 8 characters"
-                        value={form.password}
-                        onChange={handleChange}
-                        required
-                        className="h-11"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Minimum 8 characters with uppercase, lowercase, number & special character"
+                          value={form.password}
+                          onChange={handleChange}
+                          required
+                          className="h-11 pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                          onClick={togglePasswordVisibility}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      
+                      {/* Password strength indicator */}
+                      {form.password && (
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-slate-500">
+                              Password strength: {passwordStrength.label}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {passwordStrength.score}/5
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-300 ${
+                                passwordStrength.score <= 2
+                                  ? "bg-red-500"
+                                  : passwordStrength.score <= 3
+                                  ? "bg-yellow-500"
+                                  : passwordStrength.score <= 4
+                                  ? "bg-blue-500"
+                                  : "bg-green-500"
+                              }`}
+                              style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Must contain: uppercase, lowercase, number, special character (@$!%*?&)
+                          </p>
+                        </div>
+                      )}
                     </div>
 
+                    {/* Confirm Password */}
                     <div className="space-y-2">
                       <Label
                         htmlFor="confirmPassword"
                         className="text-sm font-medium"
                       >
-                        Confirm Password
+                        Confirm Password *
                       </Label>
-                      <Input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type="password"
-                        placeholder="Re-enter password"
-                        value={form.confirmPassword}
-                        onChange={handleChange}
-                        required
-                        className="h-11"
-                      />
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          name="confirmPassword"
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Re-enter password"
+                          value={form.confirmPassword}
+                          onChange={handleChange}
+                          required
+                          className="h-11 pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                          onClick={toggleConfirmPasswordVisibility}
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      {form.confirmPassword && form.password !== form.confirmPassword && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Passwords do not match
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full h-12 bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-700 hover:to-emerald-700 transition-all duration-300"
+                  className="w-full cursor-pointer disabled:cursor-not-allowed h-12 bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-700 hover:to-emerald-700 transition-all duration-300"
                   disabled={loading}
                 >
                   {loading ? (
@@ -618,7 +775,7 @@ export default function Signup() {
                       Creating Account...
                     </span>
                   ) : (
-                    <span className="flex items-center justify-center gap-2">
+                    <span className="flex items-center justify-center gap-2 text-white">
                       <Shield className="w-5 h-5" />
                       Create {getSignupTypeLabel(signupType)} Account
                     </span>

@@ -1,15 +1,8 @@
 const pool = require("../config/db");
-const ai = require("./ai.service");
 
 /* =======================
    TEMPLATE MANAGEMENT
 ======================= */
-
-await ai.runPrompt("audit_analysis", {
-  findings,
-  score,
-  location
-});
 
 exports.createTemplate = async (data, userId) => {
   const { name, area_type } = data;

@@ -1,7 +1,11 @@
 const { detectTrainingGaps } = require("./training.ai");
 
-await detectTrainingGaps({
-  incidents,
-  nearMisses,
-  trainingData
-});
+exports.analyzeTrainingGaps = async (incidents, nearMisses, trainingData) => {
+  return await detectTrainingGaps({
+    incidents,
+    nearMisses,
+    trainingData,
+  });
+};
+
+// Then call it from your controller when needed
