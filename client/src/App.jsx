@@ -98,34 +98,6 @@ function App() {
           />
         </Route>
 
-        {/* Standalone routes with AppShell */}
-        <Route
-          path="/groups"
-          element={
-            <AppShell user={user} onLogout={handleLogout}>
-              <Groups user={user} />
-            </AppShell>
-          }
-        />
-        <Route
-          path="/groups/create"
-          element={
-            <AppShell user={user} onLogout={handleLogout}>
-              <div className="p-8">
-                <h1 className="text-2xl font-bold mb-4">Create New Group</h1>
-                {/* Add your create group form here */}
-              </div>
-            </AppShell>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <AppShell user={user} onLogout={handleLogout}>
-              <UserManagement user={user} />
-            </AppShell>
-          }
-        />
         <Route
           path="/pending-approvals"
           element={
@@ -134,6 +106,24 @@ function App() {
             </AppShell>
           }
         />
+        <Route
+          path="/groups"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <Groups user={user} />
+            </AppShell>
+          }
+        />
+        
+        <Route
+          path="/users"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <UserManagement user={user} />
+            </AppShell>
+          }
+        />
+        
         <Route
           path="/groups/:groupId/teams"
           element={

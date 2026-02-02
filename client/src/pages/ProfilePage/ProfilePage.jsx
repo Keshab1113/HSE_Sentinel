@@ -96,6 +96,8 @@ export default function ProfilePage({ user: initialUser }) {
   useEffect(() => {
     if (initialUser) {
       setUser(initialUser);
+      console.log("initialUser: ", initialUser);
+
       setFormData({
         name: initialUser.name || "",
         email: initialUser.email || "",
@@ -171,9 +173,22 @@ export default function ProfilePage({ user: initialUser }) {
       const response = await api.put(`/users/${user.id}`, formData);
 
       if (response.data.success) {
-        setUser((prev) => ({ ...prev, ...formData }));
+        // Update with full user data from response
+        setUser((prev) => ({ ...prev, ...response.data.data }));
         setIsEditing(false);
         showMessage("success", "Profile updated successfully");
+
+        // Refresh form data with updated values
+        setFormData({
+          name: response.data.data.name || "",
+          email: response.data.data.email || "",
+          mobile: response.data.data.mobile || "",
+          position: response.data.data.position || "",
+          work_location: response.data.data.work_location || "",
+          bio: response.data.data.bio || "",
+          timezone: response.data.data.timezone || "UTC",
+          language: response.data.data.language || "en",
+        });
       } else {
         showMessage(
           "error",
@@ -182,10 +197,11 @@ export default function ProfilePage({ user: initialUser }) {
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      showMessage(
-        "error",
-        error.response?.data?.message || "Failed to update profile",
-      );
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Failed to update profile";
+      showMessage("error", errorMessage);
     } finally {
       setSaving(false);
     }
@@ -314,15 +330,74 @@ export default function ProfilePage({ user: initialUser }) {
     return parts.join(" • ") || "No organization assigned";
   };
 
-  console.log("formData: ",formData);
-  
+  // Add this useEffect to fetch complete user details if initialUser is incomplete
+  useEffect(() => {
+    const fetchFullUserDetails = async () => {
+      if (initialUser && initialUser.id) {
+        try {
+          setLoading(true);
+          const response = await api.get(`/users/${initialUser.id}`);
+          if (response.data.success) {
+            const fullUser = response.data.data;
+            setUser(fullUser);
 
-  if (!user) {
+            setFormData({
+              name: fullUser.name || "",
+              email: fullUser.email || "",
+              mobile: fullUser.mobile || "",
+              position: fullUser.position || "",
+              work_location: fullUser.work_location || "",
+              bio: fullUser.bio || "",
+              timezone: fullUser.timezone || "UTC",
+              language: fullUser.language || "en",
+            });
+
+            // Fetch additional data
+            fetchUserActivity();
+            fetchSafetyMetrics();
+          }
+        } catch (error) {
+          console.error("Error fetching user details:", error);
+          // Fall back to initialUser
+          setUser(initialUser);
+          setFormData({
+            name: initialUser.name || "",
+            email: initialUser.email || "",
+            mobile: initialUser.mobile || "",
+            position: initialUser.position || "",
+            work_location: initialUser.work_location || "",
+            bio: initialUser.bio || "",
+            timezone: initialUser.timezone || "UTC",
+            language: initialUser.language || "en",
+          });
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchFullUserDetails();
+  }, [initialUser?.id]); // Only run when user.id changes
+
+  console.log("formData: ", formData);
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="mt-2 text-sm text-slate-500">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-slate-400 mx-auto" />
+          <p className="mt-2 text-sm text-slate-500">User not found</p>
         </div>
       </div>
     );
@@ -430,7 +505,7 @@ export default function ProfilePage({ user: initialUser }) {
                   </Button>
                   <Button
                     onClick={handleSave}
-                    className="gap-2 bg-gradient-to-r from-sky-600 to-emerald-600"
+                    className="gap-2 bg-gradient-to-r from-sky-600 to-emerald-600 text-white"
                     disabled={saving}
                   >
                     {saving ? (

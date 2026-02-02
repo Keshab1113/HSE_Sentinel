@@ -15,4 +15,7 @@ router.get("/:id", authenticate, checkRole(['super_admin', 'group_admin', 'team_
 router.patch("/:id/status", authenticate, checkRole(['super_admin', 'group_admin']), updateTeamStatus);
 router.get("/:id/users", authenticate, checkRole(['super_admin', 'group_admin', 'team_admin']), getTeamUsers);
 
+// Add route for getting teams by group (this will be handled by groups.routes)
+// router.get("/group/:id", authenticate, checkRole(['super_admin', 'group_admin']), getTeamsByGroup);
+
 module.exports = router;

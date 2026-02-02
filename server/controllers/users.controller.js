@@ -326,7 +326,6 @@ exports.updateUserStatus = async (req, res) => {
   }
 };
 
-// Update user profile
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -343,6 +342,7 @@ exports.updateProfile = async (req, res) => {
     // Allowed fields for update
     const allowedFields = [
       "name",
+      "email",  // Add email if users can update it
       "mobile",
       "position",
       "work_location",
@@ -350,6 +350,7 @@ exports.updateProfile = async (req, res) => {
       "timezone",
       "language",
     ];
+    
     const filteredUpdates = {};
 
     for (const key in updates) {
@@ -373,10 +374,21 @@ exports.updateProfile = async (req, res) => {
       values,
     );
 
-    // Get updated user
+    // Get updated user with all joins
     const [updatedUsers] = await pool.execute(
-      "SELECT * FROM users WHERE id = ?",
-      [userId],
+      `
+      SELECT 
+        u.*,
+        g.name as group_name,
+        t.name as team_name,
+        ua.name as approved_by_name
+      FROM users u
+      LEFT JOIN \`groups\` g ON u.group_id = g.id
+      LEFT JOIN teams t ON u.team_id = t.id
+      LEFT JOIN users ua ON u.approved_by = ua.id
+      WHERE u.id = ?
+      `,
+      [userId]
     );
 
     res.json({

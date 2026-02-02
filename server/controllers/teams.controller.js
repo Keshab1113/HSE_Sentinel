@@ -14,13 +14,29 @@ exports.getTeams = async (req, res) => {
       LEFT JOIN \`groups\` g ON t.group_id = g.id
       LEFT JOIN users u ON t.created_by = u.id
       LEFT JOIN users u2 ON t.id = u2.team_id
+      WHERE 1=1
     `;
 
     const params = [];
 
-    if (user.role === "group_admin") {
-      query += " WHERE t.group_id = ?";
-      params.push(user.group_id);
+    // If request is for specific group (from /groups/:id/teams endpoint)
+    if (req.params.id) {
+      const groupId = req.params.id;
+
+      // Check if user has access to this group
+      if (user.role === "group_admin" && user.group_id != groupId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      query += " AND t.group_id = ?";
+      params.push(groupId);
+    } else {
+      // For general /teams endpoint, filter based on user role
+      if (user.role === "group_admin") {
+        query += " AND t.group_id = ?";
+        params.push(user.group_id);
+      }
+      // team_admin shouldn't access this endpoint directly
     }
 
     query += " GROUP BY t.id ORDER BY t.created_at DESC";

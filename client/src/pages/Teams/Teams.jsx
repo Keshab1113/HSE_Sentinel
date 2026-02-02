@@ -36,7 +36,8 @@ import {
   MoreVertical,
   CheckCircle,
   XCircle,
-  UserPlus
+  UserPlus,
+  Filter
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,9 +47,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import api from "../../api/axios";
 
-export default function Teams() {
-  // const { groupId } = useParams();
-  const groupId = window.location.pathname.split('/').pop();
+export default function Teams({ user, groupId: propGroupId }) {
+  const { groupId: paramGroupId } = useParams(); // Get groupId from URL params if exists
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [group, setGroup] = useState(null);
@@ -56,23 +56,30 @@ export default function Teams() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
   
+  // Determine which groupId to use
+  const groupId = propGroupId || paramGroupId;
+  
   const [newTeam, setNewTeam] = useState({
     name: "",
     description: "",
-    group_id: groupId
+    group_id: groupId || ""
   });
 
   useEffect(() => {
     if (groupId) {
       fetchGroupDetails();
-      fetchTeams();
     }
+    fetchTeams();
   }, [groupId]);
 
   const fetchGroupDetails = async () => {
+    if (!groupId) return;
+    
     try {
       const response = await api.get(`/groups/${groupId}`);
       setGroup(response.data.data);
+      // Update newTeam with group_id
+      setNewTeam(prev => ({ ...prev, group_id: groupId }));
     } catch (error) {
       console.error("Error fetching group details:", error);
       showMessage("error", "Failed to fetch group details");
@@ -82,7 +89,16 @@ export default function Teams() {
   const fetchTeams = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/groups/${groupId}/teams`);
+      let response;
+      
+      if (groupId) {
+        // Fetch teams for specific group
+        response = await api.get(`/groups/${groupId}/teams`);
+      } else {
+        // Fetch all teams
+        response = await api.get(`/teams`);
+      }
+      
       setTeams(response.data.data);
     } catch (error) {
       console.error("Error fetching teams:", error);
@@ -94,11 +110,16 @@ export default function Teams() {
 
   const handleCreate = async () => {
     try {
+      if (!newTeam.group_id) {
+        showMessage("error", "Group ID is required");
+        return;
+      }
+      
       const response = await api.post("/teams", newTeam);
       
       showMessage("success", response.data.message);
       setDialogOpen(false);
-      setNewTeam({ name: "", description: "", group_id: groupId });
+      setNewTeam({ name: "", description: "", group_id: groupId || "" });
       fetchTeams();
     } catch (error) {
       console.error("Error creating team:", error);
@@ -161,55 +182,75 @@ export default function Teams() {
         <div>
           <h1 className="text-2xl font-bold">Teams</h1>
           <div className="flex items-center gap-2 mt-1">
-            <Building className="w-4 h-4 text-slate-400" />
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {group?.name} • {group?.code}
-            </p>
+            {group ? (
+              <>
+                <Building className="w-4 h-4 text-slate-400" />
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {group?.name} • {group?.code}
+                </p>
+              </>
+            ) : (
+              <>
+                <Filter className="w-4 h-4 text-slate-400" />
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  All Teams
+                </p>
+              </>
+            )}
           </div>
         </div>
         
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Create Team
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Team</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Team Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter team name"
-                  value={newTeam.name}
-                  onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Enter team description"
-                  value={newTeam.description}
-                  onChange={(e) => setNewTeam({...newTeam, description: e.target.value})}
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleCreate} disabled={!newTeam.name.trim()}>
+        {/* Only show create button if we have a group context */}
+        {groupId && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" />
                 Create Team
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Team</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Team Name *</Label>
+                  <Input
+                    id="name"
+                    placeholder="Enter team name"
+                    value={newTeam.name}
+                    onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Enter team description"
+                    value={newTeam.description}
+                    onChange={(e) => setNewTeam({...newTeam, description: e.target.value})}
+                    rows={3}
+                  />
+                </div>
+                {group && (
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-md">
+                    <p className="text-sm font-medium">Group: {group.name}</p>
+                    <p className="text-xs text-slate-500">Code: {group.code}</p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreate} disabled={!newTeam.name.trim()}>
+                  Create Team
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -258,9 +299,13 @@ export default function Teams() {
       {/* Teams Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Teams in {group?.name}</CardTitle>
+          <CardTitle>
+            {group ? `Teams in ${group.name}` : 'All Teams'}
+          </CardTitle>
           <CardDescription>
-            View and manage all teams under this group
+            {group 
+              ? "View and manage all teams under this group" 
+              : "View and manage all teams across all groups"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -268,6 +313,7 @@ export default function Teams() {
             <TableHeader>
               <TableRow>
                 <TableHead>Team Name</TableHead>
+                {!group && <TableHead>Group</TableHead>}
                 <TableHead>Code</TableHead>
                 <TableHead>Members</TableHead>
                 <TableHead>Admin</TableHead>
@@ -278,8 +324,10 @@ export default function Teams() {
             <TableBody>
               {teams.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-slate-500">
-                    No teams found. Create your first team.
+                  <TableCell colSpan={group ? 6 : 7} className="text-center py-8 text-slate-500">
+                    {groupId 
+                      ? "No teams found in this group. Create your first team." 
+                      : "No teams found."}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -291,6 +339,14 @@ export default function Teams() {
                         {team.name}
                       </div>
                     </TableCell>
+                    {!group && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building className="w-4 h-4 text-slate-400" />
+                          {team.group_name || 'N/A'}
+                        </div>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <code className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">
                         {team.code}
@@ -320,23 +376,25 @@ export default function Teams() {
                             <Eye className="w-4 h-4 mr-2" />
                             View Users
                           </DropdownMenuItem>
-                          {team.status === 'active' ? (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusUpdate(team.id, 'inactive')}
-                              className="text-red-600"
-                            >
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Deactivate
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem 
-                              onClick={() => handleStatusUpdate(team.id, 'active')}
-                              className="text-green-600"
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Activate
-                            </DropdownMenuItem>
-                          )}
+                          {user?.role === 'super_admin' || user?.role === 'group_admin' ? (
+                            team.status === 'active' ? (
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusUpdate(team.id, 'inactive')}
+                                className="text-red-600"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Deactivate
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem 
+                                onClick={() => handleStatusUpdate(team.id, 'active')}
+                                className="text-green-600"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Activate
+                              </DropdownMenuItem>
+                            )
+                          ) : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

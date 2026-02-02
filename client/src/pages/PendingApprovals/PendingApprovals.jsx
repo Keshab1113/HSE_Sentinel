@@ -517,7 +517,7 @@ export default function PendingApprovals({ user }) {
                             setSelectedUser(pendingUser);
                             setApproveDialog(true);
                           }}
-                          className="gap-1 bg-green-600 hover:bg-green-700"
+                          className="gap-1 bg-green-600 hover:bg-green-700 dark:text-white"
                         >
                           <CheckCircle className="w-3 h-3" />
                           Approve
@@ -569,7 +569,7 @@ export default function PendingApprovals({ user }) {
             </p>
             <Button 
               onClick={() => handleBulkApprove(filteredUsers.map(u => u.id))}
-              className="w-full gap-2 bg-green-600 hover:bg-green-700"
+              className="w-full gap-2 bg-green-600 hover:bg-green-700 dark:text-white"
               disabled={filteredUsers.length === 0}
             >
               <CheckCircle className="w-4 h-4" />
