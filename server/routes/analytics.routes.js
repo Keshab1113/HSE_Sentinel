@@ -1,7 +1,9 @@
-const router = require("express").Router();
-const auth = require("../middlewares/auth.middleware");
-const { getIndicatorTrends } = require("../controllers/analytics.controller");
+import { Router } from 'express';
+import { getIndicatorTrends } from '../controllers/analytics.controller.js';
+import authenticate from '../middlewares/auth.middleware.js';
 
-router.get("/indicators", auth, getIndicatorTrends);
+const router = Router();
 
-module.exports = router;
+router.get('/indicators', authenticate, getIndicatorTrends);
+
+export default router;

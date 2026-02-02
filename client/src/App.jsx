@@ -21,6 +21,12 @@ import TeamManagement from "./pages/Teams/TeamManagement";
 import UserManagement from "./pages/UserManagement/UserManagement";
 import PendingApprovals from "./pages/PendingApprovals/PendingApprovals";
 
+// Import the new pages I created
+import Analytics from "./pages/Analytics/Analytics";
+import IncidentReport from "./pages/Incidents/IncidentReport";
+import IndicatorsManagement from "./pages/Indicators/IndicatorsManagement";
+import AlertsDashboard from "./pages/Alerts/AlertsDashboard";
+
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +46,8 @@ function App() {
           group_id: payload.group_id,
           team_id: payload.team_id,
           is_approved: payload.is_approved,
+          group_name: payload.group_name,
+          team_name: payload.team_name
         });
       } catch (error) {
         console.error("Error decoding token:", error);
@@ -90,14 +98,25 @@ function App() {
           <Route path="executive" element={<ExecutiveSummary user={user} />} />
           <Route path="tasks" element={<Tasks user={user} />} />
           <Route path="profile" element={<ProfilePage user={user} />} />
-          <Route path="admin" element={<AdminDashboard user={user} />} />
+          <Route path="user-dashboard" element={<AdminDashboard user={user} />} />
+          <Route path="alert-dashboard" element={<AlertsDashboard user={user} />} />
           <Route path="users" element={<UserManagement user={user} />} />
-          <Route
-            path="pending-approvals"
-            element={<PendingApprovals user={user} />}
-          />
+          <Route path="pending-approvals" element={<PendingApprovals user={user} />} />
+          <Route path="analytics-dashboard" element={<Analytics user={user} />} />
+          <Route path="indicators-dashboard" element={<IndicatorsManagement user={user} />} />
         </Route>
 
+        {/* Incident Report route */}
+        <Route
+          path="/incidents/report"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <IncidentReport user={user} />
+            </AppShell>
+          }
+        />
+
+        {/* Other existing routes */}
         <Route
           path="/pending-approvals"
           element={
@@ -137,6 +156,206 @@ function App() {
           element={
             <AppShell user={user} onLogout={handleLogout}>
               <Users user={user} />
+            </AppShell>
+          }
+        />
+
+        {/* Additional routes from sidebar */}
+        <Route
+          path="/trainings"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">My Trainings</h1>
+                <p className="text-muted-foreground">Training management page</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Calendar</h1>
+                <p className="text-muted-foreground">Safety events calendar</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Messages</h1>
+                <p className="text-muted-foreground">Safety communications</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/incidents"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Incidents</h1>
+                <p className="text-muted-foreground">Incident management</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/inspections"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Inspections</h1>
+                <p className="text-muted-foreground">Safety inspections</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/risk-assessment"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Risk Assessment</h1>
+                <p className="text-muted-foreground">Risk assessment tools</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/equipment"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Equipment</h1>
+                <p className="text-muted-foreground">Equipment management</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/meetings"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Safety Meetings</h1>
+                <p className="text-muted-foreground">Meeting management</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Reports</h1>
+                <p className="text-muted-foreground">Safety reports</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/compliance"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Compliance</h1>
+                <p className="text-muted-foreground">Compliance tracking</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/audits"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Audits</h1>
+                <p className="text-muted-foreground">Safety audits</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/training-management"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Training Management</h1>
+                <p className="text-muted-foreground">Training administration</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/assets"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Equipment & Assets</h1>
+                <p className="text-muted-foreground">Asset management</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/reports-analytics"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Reports & Analytics</h1>
+                <p className="text-muted-foreground">Advanced analytics</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/system-admin"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">System Administration</h1>
+                <p className="text-muted-foreground">System settings</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/audit-logs"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Audit & Logs</h1>
+                <p className="text-muted-foreground">System logs</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/system-health"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">System Health</h1>
+                <p className="text-muted-foreground">System monitoring</p>
+              </div>
+            </AppShell>
+          }
+        />
+        <Route
+          path="/team-admins"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">Team Admins</h1>
+                <p className="text-muted-foreground">Team admin management</p>
+              </div>
             </AppShell>
           }
         />

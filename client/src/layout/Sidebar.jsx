@@ -6,7 +6,7 @@ import {
   CheckSquare,
   ClipboardList,
   Shield,
-  Truck,
+  BellRing,
   Wrench,
   Users,
   FileText,
@@ -289,15 +289,21 @@ const navConfig = {
       badge: null,
     },
     {
-      label: "Executive Overview",
-      icon: Target,
-      path: "/app/executive",
+      label: "Analytics Dashboard",
+      icon: Activity,
+      path: "/app/analytics-dashboard",
       badge: null,
     },
     {
-      label: "Admin Dashboard",
-      icon: Activity,
-      path: "/app/admin",
+      label: "Indicators Dashboard",
+      icon: Target,
+      path: "/app/indicators-dashboard",
+      badge: null,
+    },
+    {
+      label: "Alert Dashboard",
+      icon: BellRing,
+      path: "/app/alert-dashboard",
       badge: null,
     },
     {
@@ -326,6 +332,12 @@ const navConfig = {
       path: "#",
       badge: "",
       subItems: [
+        {
+          label: "User Dashboard",
+          icon: Activity,
+          path: "/app/user-dashboard",
+          badge: null,
+        },
         {
           label: "All Users",
           icon: Users,
@@ -484,7 +496,6 @@ export default function Sidebar({
                     className={collapsed ? "w-8 h-8" : "w-8 h-8"}
                   />
                 </div>
-                
               </div>
 
               {!collapsed && (
