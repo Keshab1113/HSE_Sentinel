@@ -49,7 +49,7 @@ export default function AssignedIndicatorsList({ assignments, onRefresh }) {
         ...data,
       });
 
-      if (response.ok) {
+      if (response.status === 200 && response.data?.success) {
         alert("Status updated successfully!");
         setShowCompleteModal(false);
         setSelectedAssignment(null);

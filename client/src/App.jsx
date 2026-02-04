@@ -41,6 +41,7 @@ import DummyVehicles from "./pages/Dummy/Vehicles";
 import DummyWorkersComp from "./pages/Dummy/WorkersComp";
 import DummyAnalytics from "./pages/Dummy/Analytics";
 import SharedIndicatorResult from "./pages/Indicators/SharedIndicatorResult";
+import SystemAdministration from "./pages/SystemAdmin/SystemAdministration/SystemAdministration";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -136,27 +137,44 @@ function App() {
           />
         </Route>
 
-        <Route element={<ProtectedRoute user={user}/>}>
-              <Route path="/dummy" element={<AppShell user={user} onLogout={handleLogout}/>}>
-                <Route index path="dashboard" element={<DummyDashboard user={user}/>} />
-                <Route path="groups" element={<DummyGroups />} />
-                <Route path="teams" element={<DummyTeams />} />
-                <Route path="users" element={<DummyUsers />} />
-                <Route path="incidents" element={<DummyIncidents />} />
-                <Route path="incidents/:id" element={<DummyIncidentDetail />} />
-                <Route path="tasks" element={<DummyTasks />} />
-                <Route path="training" element={<DummyTraining />} />
-                <Route path="inspections" element={<DummyInspections />} />
-                <Route path="jsa" element={<DummyJSA />} />
-                <Route path="equipment" element={<DummyEquipment />} />
-                <Route path="vehicles" element={<DummyVehicles />} />
-                <Route path="workers-comp" element={<DummyWorkersComp />} />
-                <Route path="analytics" element={<DummyAnalytics />} />
-              </Route>
-            </Route>
+        <Route element={<ProtectedRoute user={user} />}>
+          <Route
+            path="/dummy"
+            element={<AppShell user={user} onLogout={handleLogout} />}
+          >
+            <Route
+              index
+              path="dashboard"
+              element={<DummyDashboard user={user} />}
+            />
+            <Route path="groups" element={<DummyGroups />} />
+            <Route path="teams" element={<DummyTeams />} />
+            <Route path="users" element={<DummyUsers />} />
+            <Route path="incidents" element={<DummyIncidents />} />
+            <Route path="incidents/:id" element={<DummyIncidentDetail />} />
+            <Route path="tasks" element={<DummyTasks />} />
+            <Route path="training" element={<DummyTraining />} />
+            <Route path="inspections" element={<DummyInspections />} />
+            <Route path="jsa" element={<DummyJSA />} />
+            <Route path="equipment" element={<DummyEquipment />} />
+            <Route path="vehicles" element={<DummyVehicles />} />
+            <Route path="workers-comp" element={<DummyWorkersComp />} />
+            <Route path="analytics" element={<DummyAnalytics />} />
+          </Route>
+        </Route>
 
-            <Route path="/shared-indicator/:shareToken" element={<SharedIndicatorResult />} />
-
+        <Route
+          path="/shared-indicator/:shareToken"
+          element={<SharedIndicatorResult />}
+        />
+        <Route
+          path="/system-admin"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <SystemAdministration user={user} />
+            </AppShell>
+          }
+        />
         {/* Incident Report route */}
         <Route
           path="/incidents/report"

@@ -27,8 +27,8 @@ export default function SharedIndicatorResult() {
   const fetchSharedResult = async () => {
     try {
       const response = await api.get(`/indicators/shared/${shareToken}`);
-      if (response.ok) {
-        const result = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const result = await response.data;
         setData(result.data);
       } else {
         setError("This shared result is not available or has expired");

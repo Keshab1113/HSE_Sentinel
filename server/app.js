@@ -14,6 +14,7 @@ import teamsRoutes from "./routes/teams.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import indicatorsRoutes from "./routes/indicators.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
+import rbacRoutes from "./routes/ Systemadministration/rbac.routes.js"
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use("/api/teams", teamsRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/indicators", indicatorsRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use('/api/rbac', rbacRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

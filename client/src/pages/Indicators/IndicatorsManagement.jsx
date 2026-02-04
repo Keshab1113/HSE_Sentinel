@@ -28,10 +28,14 @@ import CreateIndicatorModal from "../../components/IndicatorManagement/CreateInd
 import AssignIndicatorModal from "../../components/IndicatorManagement/AssignIndicatorModal";
 import IndicatorDetailsModal from "../../components/IndicatorManagement/IndicatorDetailsModal";
 import AssignedIndicatorsList from "./AssignedIndicatorsList";
+import PermissionChecker from "../../components/SystemAdministration/PermissionChecker"
 
 export default function IndicatorsManagement({ user }) {
   const [indicators, setIndicators] = useState({ leading: [], lagging: [] });
-  const [assignedIndicators, setAssignedIndicators] = useState({ leading: [], lagging: [] });
+  const [assignedIndicators, setAssignedIndicators] = useState({
+    leading: [],
+    lagging: [],
+  });
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
@@ -41,8 +45,16 @@ export default function IndicatorsManagement({ user }) {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedIndicator, setSelectedIndicator] = useState(null);
 
-  const canCreateIndicator = ["super_admin", "group_admin", "team_admin"].includes(user.role);
-  const canAssignIndicator = ["super_admin", "group_admin", "team_admin"].includes(user.role);
+  const canCreateIndicator = [
+    "super_admin",
+    "group_admin",
+    "team_admin",
+  ].includes(user.role);
+  const canAssignIndicator = [
+    "super_admin",
+    "group_admin",
+    "team_admin",
+  ].includes(user.role);
 
   useEffect(() => {
     fetchIndicators();
@@ -52,40 +64,38 @@ export default function IndicatorsManagement({ user }) {
   }, []);
 
   const fetchIndicators = async () => {
-  setLoading(true);
-  try {
-    const response = await api.get("/indicators/");
+    setLoading(true);
+    try {
+      const response = await api.get("/indicators/");
 
-    console.log("RAW AXIOS RESPONSE:", response);
+      console.log("RAW AXIOS RESPONSE:", response);
 
-    if (response.status === 200 && response.data?.success) {
-      const indicatorsData = response.data.data;
+      if (response.status === 200 && response.data?.success) {
+        const indicatorsData = response.data.data;
 
-      setIndicators({
-        leading: indicatorsData.leading || [],
-        lagging: indicatorsData.lagging || [],
-      });
+        setIndicators({
+          leading: indicatorsData.leading || [],
+          lagging: indicatorsData.lagging || [],
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching indicators:", error);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error fetching indicators:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   const fetchAssignedIndicators = async () => {
-  try {
-    const response = await api.get("/indicators/assigned/me");
+    try {
+      const response = await api.get("/indicators/assigned/me");
 
-    if (response.status === 200 && response.data?.success) {
-      setAssignedIndicators(response.data.data);
+      if (response.status === 200 && response.data?.success) {
+        setAssignedIndicators(response.data.data);
+      }
+    } catch (error) {
+      console.error(error);
     }
-  } catch (error) {
-    console.error(error);
-  }
-};
-
+  };
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -109,13 +119,15 @@ export default function IndicatorsManagement({ user }) {
         },
       });
 
-      if (response.ok) {
+      if (response.status === 200 && response.data?.success) {
         alert("Document uploaded and analyzed successfully!");
         fetchIndicators();
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Upload failed: " + (error.response?.data?.message || error.message));
+      alert(
+        "Upload failed: " + (error.response?.data?.message || error.message),
+      );
     } finally {
       setLoading(false);
     }
@@ -124,7 +136,7 @@ export default function IndicatorsManagement({ user }) {
   const handleCreateIndicator = async (data) => {
     try {
       const response = await api.post("/indicators/", data);
-      if (response.ok) {
+      if (response.status === 200 && response.data?.success) {
         alert("Indicator created successfully!");
         setShowCreateModal(false);
         fetchIndicators();
@@ -135,7 +147,13 @@ export default function IndicatorsManagement({ user }) {
     }
   };
 
-  const handleAssignIndicator = async (indicatorId, type, assignees, dueDate, notes) => {
+  const handleAssignIndicator = async (
+    indicatorId,
+    type,
+    assignees,
+    dueDate,
+    notes,
+  ) => {
     try {
       const response = await api.post(`/indicators/${indicatorId}/assign`, {
         assignees,
@@ -143,7 +161,7 @@ export default function IndicatorsManagement({ user }) {
         due_date: dueDate,
         notes,
       });
-      if (response.ok) {
+      if (response.status === 200 && response.data?.success) {
         alert("Indicator assigned successfully!");
         setShowAssignModal(false);
         setSelectedIndicator(null);
@@ -159,7 +177,7 @@ export default function IndicatorsManagement({ user }) {
 
     try {
       const response = await api.delete(`/indicators/${id}?type=${type}`);
-      if (response.ok) {
+      if (response.status === 200 && response.data?.success) {
         alert("Indicator deleted successfully!");
         fetchIndicators();
       }
@@ -179,14 +197,16 @@ export default function IndicatorsManagement({ user }) {
     setShowAssignModal(true);
   };
 
-  const filteredLeading = (indicators.leading || []).filter((indicator) =>
-    indicator.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    indicator.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredLeading = (indicators.leading || []).filter(
+    (indicator) =>
+      indicator.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      indicator.category?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const filteredLagging = (indicators.lagging || []).filter((indicator) =>
-    indicator.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    indicator.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredLagging = (indicators.lagging || []).filter(
+    (indicator) =>
+      indicator.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      indicator.category?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getTabIndicators = () => {
@@ -199,7 +219,7 @@ export default function IndicatorsManagement({ user }) {
     filterType,
     leadingCount: filteredLeading.length,
     laggingCount: filteredLagging.length,
-    totalFiltered: getTabIndicators().length
+    totalFiltered: getTabIndicators().length,
   });
 
   return (
@@ -216,8 +236,8 @@ export default function IndicatorsManagement({ user }) {
               : "Manage leading and lagging indicators, upload documents for AI analysis"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {canCreateIndicator && (
+        <PermissionChecker permission="create_indicators">
+          <div className="flex items-center gap-3">
             <Button
               size="sm"
               variant="outline"
@@ -227,8 +247,8 @@ export default function IndicatorsManagement({ user }) {
               <Plus className="w-4 h-4" />
               Create Indicator
             </Button>
-          )}
-        </div>
+          </div>
+        </PermissionChecker>
       </div>
 
       {/* Stats Cards */}
@@ -241,7 +261,9 @@ export default function IndicatorsManagement({ user }) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Leading</p>
-                <p className="text-2xl font-bold">{indicators.leading?.length || 0}</p>
+                <p className="text-2xl font-bold">
+                  {indicators.leading?.length || 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -255,7 +277,9 @@ export default function IndicatorsManagement({ user }) {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Lagging</p>
-                <p className="text-2xl font-bold">{indicators.lagging?.length || 0}</p>
+                <p className="text-2xl font-bold">
+                  {indicators.lagging?.length || 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -272,7 +296,8 @@ export default function IndicatorsManagement({ user }) {
                   <div>
                     <p className="text-sm text-muted-foreground">Assigned</p>
                     <p className="text-2xl font-bold">
-                      {(assignedIndicators.leading?.length || 0) + (assignedIndicators.lagging?.length || 0)}
+                      {(assignedIndicators.leading?.length || 0) +
+                        (assignedIndicators.lagging?.length || 0)}
                     </p>
                   </div>
                 </div>
@@ -288,8 +313,12 @@ export default function IndicatorsManagement({ user }) {
                   <div>
                     <p className="text-sm text-muted-foreground">Completed</p>
                     <p className="text-2xl font-bold">
-                      {(assignedIndicators.leading?.filter(i => i.status === 'completed').length || 0) +
-                       (assignedIndicators.lagging?.filter(i => i.status === 'completed').length || 0)}
+                      {(assignedIndicators.leading?.filter(
+                        (i) => i.status === "completed",
+                      ).length || 0) +
+                        (assignedIndicators.lagging?.filter(
+                          (i) => i.status === "completed",
+                        ).length || 0)}
                     </p>
                   </div>
                 </div>
@@ -363,7 +392,8 @@ export default function IndicatorsManagement({ user }) {
                         Upload Safety Documents for AI Analysis
                       </h3>
                       <p className="text-sm text-blue-800/80 dark:text-blue-300/80">
-                        Upload incident reports, inspection forms, training records to automatically extract indicators
+                        Upload incident reports, inspection forms, training
+                        records to automatically extract indicators
                       </p>
                       <div className="flex items-center gap-2 mt-3">
                         <Badge variant="outline" className="text-xs">
@@ -377,7 +407,9 @@ export default function IndicatorsManagement({ user }) {
                   </div>
                   <Button
                     className="gap-2"
-                    onClick={() => document.getElementById("file-upload").click()}
+                    onClick={() =>
+                      document.getElementById("file-upload").click()
+                    }
                   >
                     <Upload className="w-4 h-4" />
                     Upload Document
@@ -499,7 +531,14 @@ export default function IndicatorsManagement({ user }) {
   );
 }
 
-function IndicatorCard({ indicator, onView, onAssign, onDelete, canAssign, canDelete }) {
+function IndicatorCard({
+  indicator,
+  onView,
+  onAssign,
+  onDelete,
+  canAssign,
+  canDelete,
+}) {
   const isLeading = indicator.type === "leading";
 
   return (

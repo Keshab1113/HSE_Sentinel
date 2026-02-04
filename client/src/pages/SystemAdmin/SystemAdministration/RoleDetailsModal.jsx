@@ -1,0 +1,241 @@
+// RoleDetailsModal.jsx
+import React from "react";
+import { X, Shield, Key, Users, Calendar, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+
+export default function RoleDetailsModal({ role, onClose }) {
+  if (!role) return null;
+
+  const permissionsByGroup = role.permissions?.reduce((acc, perm) => {
+    const group = perm.group_name || "Other";
+    if (!acc[group]) {
+      acc[group] = [];
+    }
+    acc[group].push(perm);
+    return acc;
+  }, {}) || {};
+
+  const hierarchyLabels = {
+    0: "Level 0 - Highest Authority",
+    1: "Level 1 - Group Management",
+    2: "Level 2 - Team Management",
+    3: "Level 3 - Employee Access"
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-r from-purple-500 to-blue-500 text-white p-6 z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Shield className="w-8 h-8" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold">{role.role_name}</h2>
+                  {role.is_system && (
+                    <Badge className="bg-white/20 text-white border-white/30">
+                      System Role
+                    </Badge>
+                  )}
+                  <Badge className={role.is_active ? "bg-green-500/20 text-white border-green-300/30" : "bg-red-500/20 text-white border-red-300/30"}>
+                    {role.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <p className="text-white/80 mt-1">{role.description || "No description provided"}</p>
+              </div>
+            </div>
+            <button 
+              onClick={onClose} 
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                    <Key className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Role Key</p>
+                    <code className="text-sm font-mono font-medium">{role.role_key}</code>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Hierarchy</p>
+                    <p className="text-sm font-medium">Level {role.hierarchy_level}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                    <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Users</p>
+                    <p className="text-sm font-medium">{role.user_count || 0}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Calendar className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Created</p>
+                    <p className="text-sm font-medium">
+                      {new Date(role.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Hierarchy Description */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                  <Shield className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">Hierarchy Level</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {hierarchyLabels[role.hierarchy_level] || `Level ${role.hierarchy_level}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Lower numbers indicate higher authority. This role can manage roles at level {role.hierarchy_level + 1} and below.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Permissions Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Permissions</h3>
+              <Badge variant="secondary" className="text-sm">
+                {role.permissions?.length || 0} total permissions
+              </Badge>
+            </div>
+
+            {Object.keys(permissionsByGroup).length > 0 ? (
+              <div className="space-y-4">
+                {Object.entries(permissionsByGroup).map(([groupName, perms]) => (
+                  <Card key={groupName}>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold">{groupName}</h4>
+                        <Badge variant="outline">{perms.length} permissions</Badge>
+                      </div>
+                    </div>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {perms.map((perm) => (
+                          <div
+                            key={perm.id}
+                            className="flex items-start gap-2 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:shadow-sm transition-shadow"
+                          >
+                            <div className="p-1 rounded bg-purple-100 dark:bg-purple-900/30 mt-0.5">
+                              <Key className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">{perm.permission_name}</p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {perm.description}
+                              </p>
+                              <code className="text-xs text-purple-600 dark:text-purple-400 mt-1 block">
+                                {perm.permission_key}
+                              </code>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Key className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-slate-900 dark:text-white mb-2">
+                    No Permissions Assigned
+                  </h4>
+                  <p className="text-sm text-muted-foreground">
+                    This role has no permissions configured
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Metadata */}
+          {role.created_by_name && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground mb-1">Created By</p>
+                    <p className="font-medium">{role.created_by_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground mb-1">Created At</p>
+                    <p className="font-medium">
+                      {new Date(role.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  {role.updated_at && (
+                    <div className="col-span-2">
+                      <p className="text-muted-foreground mb-1">Last Updated</p>
+                      <p className="font-medium">
+                        {new Date(role.updated_at).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Footer */}
+          <div className="flex justify-end pt-4 border-t border-slate-200 dark:border-slate-700">
+            <Button onClick={onClose} size="lg">
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

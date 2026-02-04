@@ -1,215 +1,217 @@
-import pool from '../config/db.js';
-import { IndicatorService } from '../services/predictive/indicator.service.js';
-import { FTPUploader } from '../utils/ftpUploader.js';
-import crypto from 'crypto';
-import fs from 'fs';
+import pool from "../config/db.js";
+import { IndicatorService } from "../services/predictive/indicator.service.js";
+import { FTPUploader } from "../utils/ftpUploader.js";
+import crypto from "crypto";
+import fs from "fs";
 
 const indicatorService = new IndicatorService();
 const ftpUploader = new FTPUploader();
 
 // Upload and analyze document
 export const uploadAndAnalyze = async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'No file uploaded' 
-            });
-        }
-
-        const groupId = req.body.groupId ? parseInt(req.body.groupId) : null;
-        const teamId = req.body.teamId ? parseInt(req.body.teamId) : null;
-        const documentType = req.body.documentType;
-        const userId = req.user.id;
-
-        console.log('Upload parameters:', {
-            userId,
-            groupId,
-            teamId,
-            documentType,
-            file: req.file.originalname
-        });
-
-        // Upload to FTP
-        const uploadResult = await ftpUploader.uploadFile(req.file.path, {
-            onProgress: (progress) => {
-                console.log(`Upload progress: ${progress.percentage.toFixed(1)}%`);
-            }
-        });
-
-        // Process with AI
-        const analysisResult = await indicatorService.processSafetyDocument(
-            uploadResult.url,
-            req.file.mimetype,
-            userId,
-            groupId,
-            teamId
-        );
-
-        // Clean up local file
-        if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
-
-        res.json({
-            success: true,
-            upload: uploadResult,
-            analysis: analysisResult,
-            message: 'File uploaded and analyzed successfully'
-        });
-
-    } catch (error) {
-        console.error('Upload and analyze error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Analysis failed',
-            error: error.message
-        });
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
     }
+
+    const groupId = req.body.groupId ? parseInt(req.body.groupId) : null;
+    const teamId = req.body.teamId ? parseInt(req.body.teamId) : null;
+    const documentType = req.body.documentType;
+    const userId = req.user.id;
+
+    console.log("Upload parameters:", {
+      userId,
+      groupId,
+      teamId,
+      documentType,
+      file: req.file.originalname,
+    });
+
+    // Upload to FTP
+    const uploadResult = await ftpUploader.uploadFile(req.file.path, {
+      onProgress: (progress) => {
+        console.log(`Upload progress: ${progress.percentage.toFixed(1)}%`);
+      },
+    });
+
+    // Process with AI
+    const analysisResult = await indicatorService.processSafetyDocument(
+      uploadResult.url,
+      req.file.mimetype,
+      userId,
+      groupId,
+      teamId,
+    );
+
+    // Clean up local file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.json({
+      success: true,
+      upload: uploadResult,
+      analysis: analysisResult,
+      message: "File uploaded and analyzed successfully",
+    });
+  } catch (error) {
+    console.error("Upload and analyze error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Analysis failed",
+      error: error.message,
+    });
+  }
 };
 
 // Create indicator
 export const createIndicator = async (req, res) => {
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-        const {
-            indicator_code,
-            name,
-            description,
-            category,
-            indicator_type, // 'leading' or 'lagging'
-            measurement_unit,
-            target_value,
-            min_acceptable,
-            weight,
-            severity_weight,
-            financial_impact_multiplier
-        } = req.body;
+    const {
+      indicator_code,
+      name,
+      description,
+      category,
+      indicator_type, // 'leading' or 'lagging'
+      measurement_unit,
+      target_value,
+      min_acceptable,
+      weight,
+      severity_weight,
+      financial_impact_multiplier,
+    } = req.body;
 
-        const userId = req.user.id;
-        const userRole = req.user.role;
-        const groupId = req.user.group_id;
-        const teamId = req.user.team_id;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const groupId = req.user.group_id;
+    const teamId = req.user.team_id;
 
-        // Validate indicator type
-        if (!['leading', 'lagging'].includes(indicator_type)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid indicator_type. Must be "leading" or "lagging"'
-            });
-        }
+    // Validate indicator type
+    if (!["leading", "lagging"].includes(indicator_type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid indicator_type. Must be "leading" or "lagging"',
+      });
+    }
 
-        const tableName = indicator_type === 'leading' ? 'leading_indicators' : 'lagging_indicators';
+    const tableName =
+      indicator_type === "leading"
+        ? "leading_indicators"
+        : "lagging_indicators";
 
-        let insertQuery, insertParams;
+    let insertQuery, insertParams;
 
-        if (indicator_type === 'leading') {
-            insertQuery = `
+    if (indicator_type === "leading") {
+      insertQuery = `
                 INSERT INTO ${tableName} 
                 (indicator_code, name, description, category, measurement_unit, 
                  target_value, min_acceptable, weight, created_by, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             `;
-            insertParams = [
-                indicator_code,
-                name,
-                description,
-                category,
-                measurement_unit || 'count',
-                target_value || 100,
-                min_acceptable || 70,
-                weight || 1.0,
-                userId
-            ];
-        } else {
-            insertQuery = `
+      insertParams = [
+        indicator_code,
+        name,
+        description,
+        category,
+        measurement_unit || "count",
+        target_value || 100,
+        min_acceptable || 70,
+        weight || 1.0,
+        userId,
+      ];
+    } else {
+      insertQuery = `
                 INSERT INTO ${tableName} 
                 (indicator_code, name, description, category, severity_weight, 
                  financial_impact_multiplier, created_by, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
             `;
-            insertParams = [
-                indicator_code,
-                name,
-                description,
-                category,
-                severity_weight || 1.0,
-                financial_impact_multiplier || 1.0,
-                userId
-            ];
-        }
+      insertParams = [
+        indicator_code,
+        name,
+        description,
+        category,
+        severity_weight || 1.0,
+        financial_impact_multiplier || 1.0,
+        userId,
+      ];
+    }
 
-        const [result] = await connection.execute(insertQuery, insertParams);
+    const [result] = await connection.execute(insertQuery, insertParams);
 
-        // Create metadata entry
-        await connection.execute(
-            `INSERT INTO indicator_metadata 
+    // Create metadata entry
+    await connection.execute(
+      `INSERT INTO indicator_metadata 
              (indicator_id, indicator_type, created_by_role, group_id, team_id, created_at)
              VALUES (?, ?, ?, ?, ?, NOW())`,
-            [result.insertId, indicator_type, userRole, groupId, teamId]
-        );
+      [result.insertId, indicator_type, userRole, groupId, teamId],
+    );
 
-        await connection.commit();
+    await connection.commit();
 
-        res.json({
-            success: true,
-            indicator_id: result.insertId,
-            indicator_type,
-            message: 'Indicator created successfully'
-        });
-
-    } catch (error) {
-        await connection.rollback();
-        console.error('Create indicator error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to create indicator',
-            error: error.message
-        });
-    } finally {
-        connection.release();
-    }
+    res.json({
+      success: true,
+      indicator_id: result.insertId,
+      indicator_type,
+      message: "Indicator created successfully",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Create indicator error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create indicator",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
 };
 
 // Get indicators with filtering
 export const getIndicators = async (req, res) => {
-    try {
-        const { type, category, status, created_by } = req.query;
-        const user = req.user;
+  try {
+    const { type, category, status, created_by } = req.query;
+    const user = req.user;
 
-        let leadingIndicators = [];
-        let laggingIndicators = [];
+    let leadingIndicators = [];
+    let laggingIndicators = [];
 
-        // Build WHERE clause based on role
-        let whereConditions = [];
-        let params = [];
+    // Build WHERE clause based on role
+    let whereConditions = [];
+    let params = [];
 
-        if (user.role === 'employee') {
-            whereConditions.push('(im.group_id = ? OR im.team_id = ?)');
-            params.push(user.group_id, user.team_id);
-        } else if (user.role === 'team_admin') {
-            whereConditions.push('im.team_id = ?');
-            params.push(user.team_id);
-        } else if (user.role === 'group_admin') {
-            whereConditions.push('im.group_id = ?');
-            params.push(user.group_id);
-        }
+    if (user.role === "employee") {
+      whereConditions.push("(im.group_id = ? OR im.team_id = ?)");
+      params.push(user.group_id, user.team_id);
+    } else if (user.role === "team_admin") {
+      whereConditions.push("im.team_id = ?");
+      params.push(user.team_id);
+    } else if (user.role === "group_admin") {
+      whereConditions.push("im.group_id = ?");
+      params.push(user.group_id);
+    }
 
-        if (category) {
-            whereConditions.push('li.category = ?');
-            params.push(category);
-        }
+    if (category) {
+      whereConditions.push("li.category = ?");
+      params.push(category);
+    }
 
-        const whereClause = whereConditions.length > 0 
-            ? 'WHERE ' + whereConditions.join(' AND ')
-            : '';
+    const whereClause =
+      whereConditions.length > 0
+        ? "WHERE " + whereConditions.join(" AND ")
+        : "";
 
-        // Get leading indicators
-        if (!type || type === 'leading') {
-            const [leading] = await pool.execute(
-                `SELECT DISTINCT li.*, im.created_by_role, im.group_id, im.team_id,
+    // Get leading indicators
+    if (!type || type === "leading") {
+      const [leading] = await pool.execute(
+        `SELECT DISTINCT li.*, im.created_by_role, im.group_id, im.team_id,
                         u.name as created_by_name
                  FROM leading_indicators li
                  LEFT JOIN indicator_metadata im ON li.id = im.indicator_id AND im.indicator_type = 'leading'
@@ -217,15 +219,15 @@ export const getIndicators = async (req, res) => {
                  ${whereClause}
                  AND li.is_active = TRUE
                  ORDER BY li.created_at DESC`,
-                params
-            );
-            leadingIndicators = leading;
-        }
+        params,
+      );
+      leadingIndicators = leading;
+    }
 
-        // Get lagging indicators
-        if (!type || type === 'lagging') {
-            const [lagging] = await pool.execute(
-                `SELECT DISTINCT li.*, im.created_by_role, im.group_id, im.team_id,
+    // Get lagging indicators
+    if (!type || type === "lagging") {
+      const [lagging] = await pool.execute(
+        `SELECT DISTINCT li.*, im.created_by_role, im.group_id, im.team_id,
                         u.name as created_by_name
                  FROM lagging_indicators li
                  LEFT JOIN indicator_metadata im ON li.id = im.indicator_id AND im.indicator_type = 'lagging'
@@ -233,65 +235,65 @@ export const getIndicators = async (req, res) => {
                  ${whereClause}
                  AND li.is_active = TRUE
                  ORDER BY li.created_at DESC`,
-                params
-            );
-            laggingIndicators = lagging;
-        }
-
-        res.json({
-            success: true,
-            data: {
-                leading: leadingIndicators,
-                lagging: laggingIndicators,
-                total: leadingIndicators.length + laggingIndicators.length
-            }
-        });
-
-    } catch (error) {
-        console.error('Get indicators error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch indicators',
-            error: error.message
-        });
+        params,
+      );
+      laggingIndicators = lagging;
     }
+
+    res.json({
+      success: true,
+      data: {
+        leading: leadingIndicators,
+        lagging: laggingIndicators,
+        total: leadingIndicators.length + laggingIndicators.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get indicators error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch indicators",
+      error: error.message,
+    });
+  }
 };
 
 // Get single indicator
 export const getIndicatorById = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { type } = req.query; // 'leading' or 'lagging'
+  try {
+    const { id } = req.params;
+    const { type } = req.query; // 'leading' or 'lagging'
 
-        if (!type) {
-            return res.status(400).json({
-                success: false,
-                message: 'indicator type is required'
-            });
-        }
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "indicator type is required",
+      });
+    }
 
-        const tableName = type === 'leading' ? 'leading_indicators' : 'lagging_indicators';
+    const tableName =
+      type === "leading" ? "leading_indicators" : "lagging_indicators";
 
-        const [indicators] = await pool.execute(
-            `SELECT li.*, im.created_by_role, im.group_id, im.team_id,
+    const [indicators] = await pool.execute(
+      `SELECT li.*, im.created_by_role, im.group_id, im.team_id,
                     u.name as created_by_name
              FROM ${tableName} li
              LEFT JOIN indicator_metadata im ON li.id = im.indicator_id AND im.indicator_type = ?
              LEFT JOIN users u ON li.created_by = u.id
              WHERE li.id = ? AND li.is_active = TRUE`,
-            [type, id]
-        );
+      [type, id],
+    );
 
-        if (indicators.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Indicator not found'
-            });
-        }
+    if (indicators.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Indicator not found",
+      });
+    }
 
-        // Get assignments
-        const [assignments] = await pool.execute(
-            `SELECT ia.*, 
+    // Get assignments
+    const [assignments] = await pool.execute(
+      `SELECT ia.*, 
                     u.name as assignee_name, u.email as assignee_email, u.role as assignee_role,
                     ab.name as assigned_by_name
              FROM indicator_assignments ia
@@ -299,278 +301,297 @@ export const getIndicatorById = async (req, res) => {
              LEFT JOIN users ab ON ia.assigned_by = ab.id
              WHERE ia.indicator_id = ? AND ia.indicator_type = ?
              ORDER BY ia.assigned_at DESC`,
-            [id, type]
-        );
+      [id, type],
+    );
 
-        // Get measurements
-        const [measurements] = await pool.execute(
-            `SELECT * FROM indicator_measurements
+    // Get measurements
+    const [measurements] = await pool.execute(
+      `SELECT * FROM indicator_measurements
              WHERE indicator_id = ? AND indicator_type = ?
              ORDER BY measurement_date DESC
              LIMIT 10`,
-            [id, type]
-        );
+      [id, type],
+    );
 
-        res.json({
-            success: true,
-            data: {
-                ...indicators[0],
-                assignments,
-                recent_measurements: measurements
-            }
-        });
-
-    } catch (error) {
-        console.error('Get indicator error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch indicator',
-            error: error.message
-        });
-    }
+    res.json({
+      success: true,
+      data: {
+        ...indicators[0],
+        assignments,
+        recent_measurements: measurements,
+      },
+    });
+  } catch (error) {
+    console.error("Get indicator error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch indicator",
+      error: error.message,
+    });
+  }
 };
 
 // Update indicator
 export const updateIndicator = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { type } = req.query;
-        const updates = req.body;
+  try {
+    const { id } = req.params;
+    const { type } = req.query;
+    const updates = req.body;
 
-        if (!type) {
-            return res.status(400).json({
-                success: false,
-                message: 'indicator type is required'
-            });
-        }
-
-        const tableName = type === 'leading' ? 'leading_indicators' : 'lagging_indicators';
-
-        // Build dynamic update query
-        const allowedFields = type === 'leading'
-            ? ['name', 'description', 'category', 'measurement_unit', 'target_value', 'min_acceptable', 'weight']
-            : ['name', 'description', 'category', 'severity_weight', 'financial_impact_multiplier'];
-
-        const updateFields = [];
-        const params = [];
-
-        for (const [key, value] of Object.entries(updates)) {
-            if (allowedFields.includes(key)) {
-                updateFields.push(`${key} = ?`);
-                params.push(value);
-            }
-        }
-
-        if (updateFields.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No valid fields to update'
-            });
-        }
-
-        params.push(id);
-
-        const [result] = await pool.execute(
-            `UPDATE ${tableName} 
-             SET ${updateFields.join(', ')}, updated_at = NOW()
-             WHERE id = ?`,
-            params
-        );
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Indicator not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Indicator updated successfully'
-        });
-
-    } catch (error) {
-        console.error('Update indicator error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to update indicator',
-            error: error.message
-        });
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "indicator type is required",
+      });
     }
+
+    const tableName =
+      type === "leading" ? "leading_indicators" : "lagging_indicators";
+
+    // Build dynamic update query
+    const allowedFields =
+      type === "leading"
+        ? [
+            "name",
+            "description",
+            "category",
+            "measurement_unit",
+            "target_value",
+            "min_acceptable",
+            "weight",
+          ]
+        : [
+            "name",
+            "description",
+            "category",
+            "severity_weight",
+            "financial_impact_multiplier",
+          ];
+
+    const updateFields = [];
+    const params = [];
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = ?`);
+        params.push(value);
+      }
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields to update",
+      });
+    }
+
+    params.push(id);
+
+    const [result] = await pool.execute(
+      `UPDATE ${tableName} 
+             SET ${updateFields.join(", ")}, updated_at = NOW()
+             WHERE id = ?`,
+      params,
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Indicator not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Indicator updated successfully",
+    });
+  } catch (error) {
+    console.error("Update indicator error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update indicator",
+      error: error.message,
+    });
+  }
 };
 
 // Delete indicator (soft delete)
 export const deleteIndicator = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { type } = req.query;
+  try {
+    const { id } = req.params;
+    const { type } = req.query;
 
-        if (!type) {
-            return res.status(400).json({
-                success: false,
-                message: 'indicator type is required'
-            });
-        }
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "indicator type is required",
+      });
+    }
 
-        const tableName = type === 'leading' ? 'leading_indicators' : 'lagging_indicators';
+    const tableName =
+      type === "leading" ? "leading_indicators" : "lagging_indicators";
 
-        const [result] = await pool.execute(
-            `UPDATE ${tableName} 
+    const [result] = await pool.execute(
+      `UPDATE ${tableName} 
              SET is_active = FALSE, updated_at = NOW()
              WHERE id = ?`,
-            [id]
-        );
+      [id],
+    );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Indicator not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Indicator deleted successfully'
-        });
-
-    } catch (error) {
-        console.error('Delete indicator error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to delete indicator',
-            error: error.message
-        });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Indicator not found",
+      });
     }
+
+    res.json({
+      success: true,
+      message: "Indicator deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete indicator error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete indicator",
+      error: error.message,
+    });
+  }
 };
 
 // Assign indicator
 export const assignIndicator = async (req, res) => {
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-        const { id } = req.params;
-        const { assignees, type, due_date, notes } = req.body;
+    const { id } = req.params;
+    const { assignees, type, due_date, notes } = req.body;
 
-        if (!type || !assignees || !Array.isArray(assignees)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid request. type and assignees array are required'
-            });
-        }
+    if (!type || !assignees || !Array.isArray(assignees)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request. type and assignees array are required",
+      });
+    }
 
-        const assignedBy = req.user.id;
-        const assignedByRole = req.user.role;
+    const assignedBy = req.user.id;
+    const assignedByRole = req.user.role;
 
-        // Verify indicator exists
-        const tableName = type === 'leading' ? 'leading_indicators' : 'lagging_indicators';
-        const [indicator] = await connection.execute(
-            `SELECT * FROM ${tableName} WHERE id = ? AND is_active = TRUE`,
-            [id]
-        );
+    // Verify indicator exists
+    const tableName =
+      type === "leading" ? "leading_indicators" : "lagging_indicators";
+    const [indicator] = await connection.execute(
+      `SELECT * FROM ${tableName} WHERE id = ? AND is_active = TRUE`,
+      [id],
+    );
 
-        if (indicator.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Indicator not found'
-            });
-        }
+    if (indicator.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Indicator not found",
+      });
+    }
 
-        // Create assignments
-        const assignmentIds = [];
+    // Create assignments
+    const assignmentIds = [];
 
-        for (const assigneeId of assignees) {
-            // Get assignee details
-            const [assignee] = await connection.execute(
-                'SELECT id, role, group_id, team_id FROM users WHERE id = ?',
-                [assigneeId]
-            );
+    for (const assigneeId of assignees) {
+      // Get assignee details
+      const [assignee] = await connection.execute(
+        "SELECT id, role, group_id, team_id FROM users WHERE id = ?",
+        [assigneeId],
+      );
 
-            if (assignee.length === 0) continue;
+      if (assignee.length === 0) continue;
 
-            // Verify assignment permissions
-            const canAssign = await verifyAssignmentPermissions(
-                assignedByRole,
-                assignee[0].role,
-                req.user,
-                assignee[0]
-            );
+      // Verify assignment permissions
+      const canAssign = await verifyAssignmentPermissions(
+        assignedByRole,
+        assignee[0].role,
+        req.user,
+        assignee[0],
+      );
 
-            if (!canAssign) {
-                continue;
-            }
+      if (!canAssign) {
+        continue;
+      }
 
-            const [result] = await connection.execute(
-                `INSERT INTO indicator_assignments 
+      const [result] = await connection.execute(
+        `INSERT INTO indicator_assignments 
                  (indicator_id, indicator_type, assigned_to, assigned_by, 
                   due_date, notes, status, assigned_at)
                  VALUES (?, ?, ?, ?, ?, ?, 'pending', NOW())`,
-                [id, type, assigneeId, assignedBy, due_date, notes]
-            );
+        [id, type, assigneeId, assignedBy, due_date, notes],
+      );
 
-            assignmentIds.push(result.insertId);
-        }
-
-        await connection.commit();
-
-        res.json({
-            success: true,
-            assignments_created: assignmentIds.length,
-            assignment_ids: assignmentIds,
-            message: 'Indicator assigned successfully'
-        });
-
-    } catch (error) {
-        await connection.rollback();
-        console.error('Assign indicator error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to assign indicator',
-            error: error.message
-        });
-    } finally {
-        connection.release();
+      assignmentIds.push(result.insertId);
     }
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      assignments_created: assignmentIds.length,
+      assignment_ids: assignmentIds,
+      message: "Indicator assigned successfully",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Assign indicator error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to assign indicator",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
 };
 
 // Helper function to verify assignment permissions
-async function verifyAssignmentPermissions(assignerRole, assigneeRole, assigner, assignee) {
-    // Super admin can assign to anyone
-    if (assignerRole === 'super_admin') return true;
+async function verifyAssignmentPermissions(
+  assignerRole,
+  assigneeRole,
+  assigner,
+  assignee,
+) {
+  // Super admin can assign to anyone
+  if (assignerRole === "super_admin") return true;
 
-    // Group admin can assign to team admins and employees in their group
-    if (assignerRole === 'group_admin') {
-        if (assigneeRole === 'super_admin') return false;
-        if (assigneeRole === 'group_admin') return false;
-        return assignee.group_id === assigner.group_id;
-    }
+  // Group admin can assign to team admins and employees in their group
+  if (assignerRole === "group_admin") {
+    if (assigneeRole === "super_admin") return false;
+    if (assigneeRole === "group_admin") return false;
+    return assignee.group_id === assigner.group_id;
+  }
 
-    // Team admin can assign to employees in their team
-    if (assignerRole === 'team_admin') {
-        if (assigneeRole !== 'employee') return false;
-        return assignee.team_id === assigner.team_id;
-    }
+  // Team admin can assign to employees in their team
+  if (assignerRole === "team_admin") {
+    if (assigneeRole !== "employee") return false;
+    return assignee.team_id === assigner.team_id;
+  }
 
-    return false;
+  return false;
 }
 
 // Get assigned indicators
 export const getAssignedIndicators = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const { status } = req.query;
+  try {
+    const userId = req.user.id;
+    const { status } = req.query;
 
-        let whereClause = 'WHERE ia.assigned_to = ?';
-        const params = [userId];
+    let whereClause = "WHERE ia.assigned_to = ?";
+    const params = [userId];
 
-        if (status) {
-            whereClause += ' AND ia.status = ?';
-            params.push(status);
-        }
+    if (status) {
+      whereClause += " AND ia.status = ?";
+      params.push(status);
+    }
 
-        // Get leading indicator assignments
-        const [leadingAssignments] = await pool.execute(
-            `SELECT ia.*, 
+    // Get leading indicator assignments
+    const [leadingAssignments] = await pool.execute(
+      `SELECT ia.*, 
                     li.name as indicator_name, li.description, li.category,
                     li.measurement_unit, li.target_value,
                     u.name as assigned_by_name
@@ -580,12 +601,12 @@ export const getAssignedIndicators = async (req, res) => {
              ${whereClause}
              AND ia.indicator_type = 'leading'
              ORDER BY ia.due_date ASC, ia.assigned_at DESC`,
-            params
-        );
+      params,
+    );
 
-        // Get lagging indicator assignments
-        const [laggingAssignments] = await pool.execute(
-            `SELECT ia.*, 
+    // Get lagging indicator assignments
+    const [laggingAssignments] = await pool.execute(
+      `SELECT ia.*, 
                     li.name as indicator_name, li.description, li.category,
                     u.name as assigned_by_name
              FROM indicator_assignments ia
@@ -594,144 +615,142 @@ export const getAssignedIndicators = async (req, res) => {
              ${whereClause}
              AND ia.indicator_type = 'lagging'
              ORDER BY ia.due_date ASC, ia.assigned_at DESC`,
-            params
-        );
+      params,
+    );
 
-        res.json({
-            success: true,
-            data: {
-                leading: leadingAssignments,
-                lagging: laggingAssignments,
-                total: leadingAssignments.length + laggingAssignments.length
-            }
-        });
-
-    } catch (error) {
-        console.error('Get assigned indicators error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch assigned indicators',
-            error: error.message
-        });
-    }
+    res.json({
+      success: true,
+      data: {
+        leading: leadingAssignments,
+        lagging: laggingAssignments,
+        total: leadingAssignments.length + laggingAssignments.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get assigned indicators error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch assigned indicators",
+      error: error.message,
+    });
+  }
 };
 
 // Update assignment status
 export const updateAssignmentStatus = async (req, res) => {
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-        const { assignmentId } = req.params;
-        const { status, measured_value, notes, completion_evidence } = req.body;
-        const userId = req.user.id;
+    const { assignmentId } = req.params;
+    const { status, measured_value, notes, completion_evidence } = req.body;
+    const userId = req.user.id;
 
-        // Verify assignment belongs to user
-        const [assignment] = await connection.execute(
-            `SELECT * FROM indicator_assignments WHERE id = ? AND assigned_to = ?`,
-            [assignmentId, userId]
-        );
+    // Verify assignment belongs to user
+    const [assignment] = await connection.execute(
+      `SELECT * FROM indicator_assignments WHERE id = ? AND assigned_to = ?`,
+      [assignmentId, userId],
+    );
 
-        if (assignment.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Assignment not found or unauthorized'
-            });
-        }
+    if (assignment.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Assignment not found or unauthorized",
+      });
+    }
 
-        // Update assignment
-        const updateFields = ['status = ?'];
-        const params = [status];
+    // Update assignment
+    const updateFields = ["status = ?"];
+    const params = [status];
 
-        if (notes) {
-            updateFields.push('completion_notes = ?');
-            params.push(notes);
-        }
+    if (notes) {
+      updateFields.push("completion_notes = ?");
+      params.push(notes);
+    }
 
-        if (status === 'completed') {
-            updateFields.push('completed_at = NOW()');
-            
-            // Record measurement if value provided
-            if (measured_value !== undefined) {
-                await connection.execute(
-                    `INSERT INTO indicator_measurements
+    if (status === "completed") {
+      updateFields.push("completed_at = NOW()");
+
+      // Record measurement if value provided
+      if (measured_value !== undefined) {
+        await connection.execute(
+          `INSERT INTO indicator_measurements
                      (indicator_id, indicator_type, group_id, team_id,
                       measured_value, measurement_date, data_source,
                       source_record_id, recorded_by, recorded_at)
                      VALUES (?, ?, ?, ?, ?, CURDATE(), 'assignment', ?, ?, NOW())`,
-                    [
-                        assignment[0].indicator_id,
-                        assignment[0].indicator_type,
-                        req.user.group_id,
-                        req.user.team_id,
-                        measured_value,
-                        assignmentId,
-                        userId
-                    ]
-                );
-            }
-        }
-
-        params.push(assignmentId);
-
-        await connection.execute(
-            `UPDATE indicator_assignments 
-             SET ${updateFields.join(', ')}
-             WHERE id = ?`,
-            params
+          [
+            assignment[0].indicator_id,
+            assignment[0].indicator_type,
+            req.user.group_id,
+            req.user.team_id,
+            measured_value,
+            assignmentId,
+            userId,
+          ],
         );
-
-        await connection.commit();
-
-        res.json({
-            success: true,
-            message: 'Assignment status updated successfully'
-        });
-
-    } catch (error) {
-        await connection.rollback();
-        console.error('Update assignment status error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to update assignment status',
-            error: error.message
-        });
-    } finally {
-        connection.release();
+      }
     }
+
+    params.push(assignmentId);
+
+    await connection.execute(
+      `UPDATE indicator_assignments 
+             SET ${updateFields.join(", ")}
+             WHERE id = ?`,
+      params,
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: "Assignment status updated successfully",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Update assignment status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update assignment status",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
 };
 
 // Get indicator results
 export const getIndicatorResults = async (req, res) => {
-    try {
-        const { indicatorId } = req.params;
-        const { type } = req.query;
-        const user = req.user;
+  try {
+    const { indicatorId } = req.params;
+    const { type } = req.query;
+    const user = req.user;
 
-        if (!type) {
-            return res.status(400).json({
-                success: false,
-                message: 'indicator type is required'
-            });
-        }
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        message: "indicator type is required",
+      });
+    }
 
-        // Build authorization clause
-        let authClause = '';
-        const params = [indicatorId, type];
+    // Build authorization clause
+    let authClause = "";
+    const params = [indicatorId, type];
 
-        if (user.role === 'employee') {
-            authClause = 'AND (im.recorded_by = ? OR ia.assigned_to = ?)';
-            params.push(user.id, user.id);
-        } else if (user.role === 'team_admin') {
-            authClause = 'AND im.team_id = ?';
-            params.push(user.team_id);
-        } else if (user.role === 'group_admin') {
-            authClause = 'AND im.group_id = ?';
-            params.push(user.group_id);
-        }
+    if (user.role === "employee") {
+      authClause = "AND (im.recorded_by = ? OR ia.assigned_to = ?)";
+      params.push(user.id, user.id);
+    } else if (user.role === "team_admin") {
+      authClause = "AND im.team_id = ?";
+      params.push(user.team_id);
+    } else if (user.role === "group_admin") {
+      authClause = "AND im.group_id = ?";
+      params.push(user.group_id);
+    }
 
-        const [measurements] = await pool.execute(
-            `SELECT im.*, 
+    const [measurements] = await pool.execute(
+      `SELECT im.*, 
                     u.name as recorded_by_name,
                     ia.assigned_to, ia.due_date,
                     g.name as group_name,
@@ -744,109 +763,109 @@ export const getIndicatorResults = async (req, res) => {
              WHERE im.indicator_id = ? AND im.indicator_type = ?
              ${authClause}
              ORDER BY im.measurement_date DESC, im.recorded_at DESC`,
-            params
-        );
+      params,
+    );
 
-        res.json({
-            success: true,
-            data: measurements
-        });
-
-    } catch (error) {
-        console.error('Get indicator results error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch indicator results',
-            error: error.message
-        });
-    }
+    res.json({
+      success: true,
+      data: measurements,
+    });
+  } catch (error) {
+    console.error("Get indicator results error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch indicator results",
+      error: error.message,
+    });
+  }
 };
 
 // Share indicator result
 export const shareIndicatorResult = async (req, res) => {
-    const connection = await pool.getConnection();
-    try {
-        await connection.beginTransaction();
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
 
-        const { resultId } = req.params;
-        const userId = req.user.id;
+    const { resultId } = req.params;
+    const userId = req.user.id;
 
-        // Verify result exists and user has access
-        const [result] = await connection.execute(
-            `SELECT im.*, ia.assigned_to 
+    // Verify result exists and user has access
+    const [result] = await connection.execute(
+      `SELECT im.*, ia.assigned_to 
              FROM indicator_measurements im
              LEFT JOIN indicator_assignments ia ON im.source_record_id = ia.id AND im.data_source = 'assignment'
              WHERE im.id = ?`,
-            [resultId]
-        );
+      [resultId],
+    );
 
-        if (result.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Result not found'
-            });
-        }
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Result not found",
+      });
+    }
 
-        // Check if user has access
-        const measurement = result[0];
-        const hasAccess = 
-            measurement.recorded_by === userId ||
-            measurement.assigned_to === userId ||
-            (req.user.role === 'team_admin' && measurement.team_id === req.user.team_id) ||
-            (req.user.role === 'group_admin' && measurement.group_id === req.user.group_id) ||
-            req.user.role === 'super_admin';
+    // Check if user has access
+    const measurement = result[0];
+    const hasAccess =
+      measurement.recorded_by === userId ||
+      measurement.assigned_to === userId ||
+      (req.user.role === "team_admin" &&
+        measurement.team_id === req.user.team_id) ||
+      (req.user.role === "group_admin" &&
+        measurement.group_id === req.user.group_id) ||
+      req.user.role === "super_admin";
 
-        if (!hasAccess) {
-            return res.status(403).json({
-                success: false,
-                message: 'Access denied'
-            });
-        }
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
 
-        // Generate share token
-        const shareToken = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
+    // Generate share token
+    const shareToken = crypto.randomBytes(32).toString("hex");
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
 
-        await connection.execute(
-            `INSERT INTO shared_indicator_results 
+    await connection.execute(
+      `INSERT INTO shared_indicator_results 
              (measurement_id, share_token, shared_by, expires_at, created_at)
              VALUES (?, ?, ?, ?, NOW())`,
-            [resultId, shareToken, userId, expiresAt]
-        );
+      [resultId, shareToken, userId, expiresAt],
+    );
 
-        await connection.commit();
+    await connection.commit();
 
-        const shareUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/shared-indicator/${shareToken}`;
+    const shareUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/shared-indicator/${shareToken}`;
 
-        res.json({
-            success: true,
-            share_token: shareToken,
-            share_url: shareUrl,
-            expires_at: expiresAt,
-            message: 'Result shared successfully'
-        });
-
-    } catch (error) {
-        await connection.rollback();
-        console.error('Share result error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to share result',
-            error: error.message
-        });
-    } finally {
-        connection.release();
-    }
+    res.json({
+      success: true,
+      share_token: shareToken,
+      share_url: shareUrl,
+      expires_at: expiresAt,
+      message: "Result shared successfully",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Share result error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to share result",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
 };
 
 // Get shared indicator result (public)
 export const getSharedIndicatorResult = async (req, res) => {
-    try {
-        const { shareToken } = req.params;
+  try {
+    const { shareToken } = req.params;
 
-        const [shared] = await pool.execute(
-            `SELECT sir.*, 
+    const [shared] = await pool.execute(
+      `SELECT sir.*, 
                     im.indicator_id, im.indicator_type, im.measured_value, 
                     im.measurement_date, im.metadata,
                     u.name as recorded_by_name,
@@ -858,127 +877,127 @@ export const getSharedIndicatorResult = async (req, res) => {
              LEFT JOIN \`groups\` g ON im.group_id = g.id
              LEFT JOIN teams t ON im.team_id = t.id
              WHERE sir.share_token = ? AND sir.expires_at > NOW()`,
-            [shareToken]
-        );
+      [shareToken],
+    );
 
-        if (shared.length === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Shared result not found or expired'
-            });
-        }
-
-        const measurement = shared[0];
-        const tableName = measurement.indicator_type === 'leading' ? 'leading_indicators' : 'lagging_indicators';
-
-        // Get indicator details
-        const [indicator] = await pool.execute(
-            `SELECT name, description, category FROM ${tableName} WHERE id = ?`,
-            [measurement.indicator_id]
-        );
-
-        res.json({
-            success: true,
-            data: {
-                indicator: indicator[0],
-                measurement: {
-                    measured_value: measurement.measured_value,
-                    measurement_date: measurement.measurement_date,
-                    recorded_by_name: measurement.recorded_by_name,
-                    group_name: measurement.group_name,
-                    team_name: measurement.team_name,
-                    metadata: measurement.metadata
-                },
-                shared_at: measurement.created_at
-            }
-        });
-
-    } catch (error) {
-        console.error('Get shared result error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch shared result',
-            error: error.message
-        });
+    if (shared.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Shared result not found or expired",
+      });
     }
+
+    const measurement = shared[0];
+    const tableName =
+      measurement.indicator_type === "leading"
+        ? "leading_indicators"
+        : "lagging_indicators";
+
+    // Get indicator details
+    const [indicator] = await pool.execute(
+      `SELECT name, description, category FROM ${tableName} WHERE id = ?`,
+      [measurement.indicator_id],
+    );
+
+    res.json({
+      success: true,
+      data: {
+        indicator: indicator[0],
+        measurement: {
+          measured_value: measurement.measured_value,
+          measurement_date: measurement.measurement_date,
+          recorded_by_name: measurement.recorded_by_name,
+          group_name: measurement.group_name,
+          team_name: measurement.team_name,
+          metadata: measurement.metadata,
+        },
+        shared_at: measurement.created_at,
+      },
+    });
+  } catch (error) {
+    console.error("Get shared result error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch shared result",
+      error: error.message,
+    });
+  }
 };
 
 // Get safety scores
 export const getSafetyScores = async (req, res) => {
-    try {
-        const { groupId, teamId, startDate, endDate } = req.query;
-        const user = req.user;
+  try {
+    const { groupId, teamId, startDate, endDate } = req.query;
+    const user = req.user;
 
-        // Authorization check
-        if (user.role === 'group_admin' && user.group_id != groupId) {
-            return res.status(403).json({ message: 'Access denied' });
-        }
-        if (user.role === 'team_admin' && user.team_id != teamId) {
-            return res.status(403).json({ message: 'Access denied' });
-        }
-
-        const scores = await indicatorService.calculateSafetyScore(
-            groupId || user.group_id,
-            teamId || user.team_id,
-            endDate ? new Date(endDate) : new Date()
-        );
-
-        res.json({
-            success: true,
-            data: scores
-        });
-
-    } catch (error) {
-        console.error('Get safety scores error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to get safety scores',
-            error: error.message
-        });
+    // Authorization check
+    if (user.role === "group_admin" && user.group_id != groupId) {
+      return res.status(403).json({ message: "Access denied" });
     }
+    if (user.role === "team_admin" && user.team_id != teamId) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const scores = await indicatorService.calculateSafetyScore(
+      groupId || user.group_id,
+      teamId || user.team_id,
+      endDate ? new Date(endDate) : new Date(),
+    );
+
+    res.json({
+      success: true,
+      data: scores,
+    });
+  } catch (error) {
+    console.error("Get safety scores error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get safety scores",
+      error: error.message,
+    });
+  }
 };
 
 // Run predictive analysis
 export const runPredictiveAnalysis = async (req, res) => {
-    try {
-        const { groupId, teamId } = req.body;
-        const user = req.user;
+  try {
+    const { groupId, teamId } = req.body;
+    const user = req.user;
 
-        if (!['super_admin', 'group_admin'].includes(user.role)) {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Insufficient permissions' 
-            });
-        }
-
-        const analysis = await indicatorService.runPredictiveAnalysis(
-            groupId || user.group_id,
-            teamId || user.team_id
-        );
-
-        res.json({
-            success: true,
-            data: analysis,
-            message: 'Predictive analysis completed'
-        });
-
-    } catch (error) {
-        console.error('Predictive analysis error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Predictive analysis failed',
-            error: error.message
-        });
+    if (!["super_admin", "group_admin"].includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Insufficient permissions",
+      });
     }
+
+    const analysis = await indicatorService.runPredictiveAnalysis(
+      groupId || user.group_id,
+      teamId || user.team_id,
+    );
+
+    res.json({
+      success: true,
+      data: analysis,
+      message: "Predictive analysis completed",
+    });
+  } catch (error) {
+    console.error("Predictive analysis error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Predictive analysis failed",
+      error: error.message,
+    });
+  }
 };
 
 // Get alerts
 export const getAlerts = async (req, res) => {
-    try {
-        const user = req.user;
-        const { status, severity, limit = 50 } = req.query;
+  try {
+    const user = req.user;
+    const { status, severity, limit = 50 } = req.query;
 
-        let query = `
+    let query = `
             SELECT pa.*, 
                    g.name as group_name,
                    t.name as team_name,
@@ -990,80 +1009,78 @@ export const getAlerts = async (req, res) => {
             WHERE 1=1
         `;
 
-        const params = [];
+    const params = [];
 
-        if (user.role === 'group_admin') {
-            query += ' AND pa.group_id = ?';
-            params.push(user.group_id);
-        } else if (user.role === 'team_admin') {
-            query += ' AND pa.team_id = ?';
-            params.push(user.team_id);
-        }
-
-        if (status) {
-            query += ' AND pa.status = ?';
-            params.push(status);
-        }
-
-        if (severity) {
-            query += ' AND pa.severity = ?';
-            params.push(severity);
-        }
-
-        query += ' ORDER BY pa.created_at DESC LIMIT ?';
-        params.push(parseInt(limit));
-
-        const [alerts] = await pool.execute(query, params);
-
-        res.json({
-            success: true,
-            count: alerts.length,
-            data: alerts
-        });
-
-    } catch (error) {
-        console.error('Get alerts error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to get alerts',
-            error: error.message
-        });
+    if (user.role === "group_admin") {
+      query += " AND pa.group_id = ?";
+      params.push(user.group_id);
+    } else if (user.role === "team_admin") {
+      query += " AND pa.team_id = ?";
+      params.push(user.team_id);
     }
+
+    if (status) {
+      query += " AND pa.status = ?";
+      params.push(status);
+    }
+
+    if (severity) {
+      query += " AND pa.severity = ?";
+      params.push(severity);
+    }
+
+    query += " ORDER BY pa.created_at DESC LIMIT ?";
+    params.push(parseInt(limit));
+
+    const [alerts] = await pool.execute(query, params);
+
+    res.json({
+      success: true,
+      count: alerts.length,
+      data: alerts,
+    });
+  } catch (error) {
+    console.error("Get alerts error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get alerts",
+      error: error.message,
+    });
+  }
 };
 
 // Acknowledge alert
 export const acknowledgeAlert = async (req, res) => {
-    try {
-        const { alertId } = req.params;
-        const userId = req.user.id;
+  try {
+    const { alertId } = req.params;
+    const userId = req.user.id;
 
-        const [result] = await pool.execute(
-            `UPDATE predictive_alerts 
+    const [result] = await pool.execute(
+      `UPDATE predictive_alerts 
              SET status = 'acknowledged',
                  acknowledged_by = ?,
                  acknowledged_at = NOW()
              WHERE id = ? AND status = 'active'`,
-            [userId, alertId]
-        );
+      [userId, alertId],
+    );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'Alert not found or already acknowledged'
-            });
-        }
-
-        res.json({
-            success: true,
-            message: 'Alert acknowledged successfully'
-        });
-
-    } catch (error) {
-        console.error('Acknowledge alert error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to acknowledge alert',
-            error: error.message
-        });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Alert not found or already acknowledged",
+      });
     }
+
+    res.json({
+      success: true,
+      message: "Alert acknowledged successfully",
+    });
+  } catch (error) {
+    console.error("Acknowledge alert error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to acknowledge alert",
+      error: error.message,
+    });
+  }
 };

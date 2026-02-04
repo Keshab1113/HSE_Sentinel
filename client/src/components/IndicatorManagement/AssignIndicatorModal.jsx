@@ -44,8 +44,8 @@ export default function AssignIndicatorModal({
       }
 
       const response = await api.get(endpoint);
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const data = await response.data;
         setUsers(data.data || data.users || []);
       }
     } catch (error) {

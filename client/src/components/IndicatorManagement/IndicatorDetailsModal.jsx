@@ -19,8 +19,8 @@ export default function IndicatorDetailsModal({ indicator, onClose, onRefresh })
   const fetchDetails = async () => {
     try {
       const response = await api.get(`/indicators/${indicator.id}?type=${indicator.type}`);
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const data = await response.data;
         setDetails(data.data);
       }
     } catch (error) {
@@ -35,8 +35,8 @@ export default function IndicatorDetailsModal({ indicator, onClose, onRefresh })
       const response = await api.get(
         `/indicators/results/${indicator.id}?type=${indicator.type}`
       );
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const data = await response.data;
         setResults(data.data || []);
       }
     } catch (error) {
@@ -47,8 +47,8 @@ export default function IndicatorDetailsModal({ indicator, onClose, onRefresh })
   const handleShareResult = async (resultId) => {
     try {
       const response = await api.post(`/indicators/results/${resultId}/share`);
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const data = await response.data;
         setShareUrl(data.share_url);
         // Copy to clipboard
         navigator.clipboard.writeText(data.share_url);

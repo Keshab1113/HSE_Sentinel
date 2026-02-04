@@ -25,8 +25,8 @@ export default function AlertsDashboard({ user }) {
     try {
       const response = await api.get('/indicators/alerts');
       
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const data = await response.data;
         setAlerts(data.data || []);
       }
     } catch (error) {
@@ -40,7 +40,7 @@ export default function AlertsDashboard({ user }) {
     try {
       const response = await api.post(`/indicators/alerts/${alertId}/acknowledge`);
       
-      if (response.ok) {
+      if (response.status === 200 && response.data?.success) {
         // Update local state
         setAlerts(prev => prev.map(alert => 
           alert.id === alertId 

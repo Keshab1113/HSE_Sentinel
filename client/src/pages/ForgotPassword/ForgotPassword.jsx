@@ -42,9 +42,9 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
+      const data = await response.data;
 
-      if (!response.ok) {
+      if (!response.status === 200 && response.data?.success) {
         throw new Error(data.message || "Failed to send reset email");
       }
 
@@ -81,9 +81,9 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
+      const data = await response.data;
 
-      if (!response.ok) {
+      if (!response.status === 200 && response.data?.success) {
         throw new Error(data.message || "Failed to resend email");
       }
 

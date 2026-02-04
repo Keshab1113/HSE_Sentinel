@@ -46,8 +46,8 @@ export default function IncidentReport({ user }) {
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200 && response.data?.success) {
+        const data = await response.data;
         alert('Incident reported successfully! AI analysis in progress.');
         // Reset form
         setFormData({
