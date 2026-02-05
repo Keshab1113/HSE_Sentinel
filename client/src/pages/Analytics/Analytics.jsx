@@ -24,7 +24,7 @@ export default function Analytics({ user }) {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const response = await api.get(`/analytics/indicators?timeRange=${timeRange}`);
+      const response = await api.get(`/analytics/trends?timeRange=${timeRange}`);
       
       if (response.status === 200 && response.data?.success) {
         const data = await response.data;

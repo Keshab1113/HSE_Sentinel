@@ -34,7 +34,7 @@ export default function AssignIndicatorModal({
       // Fetch users based on role
       if (userRole === "super_admin") {
         // Can see all users
-        endpoint = "/users/all";
+        endpoint = "/users";
       } else if (userRole === "group_admin") {
         // Can see team admins and employees in their group
         endpoint = `/users/?groupId=${groupId}`;

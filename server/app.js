@@ -14,7 +14,9 @@ import teamsRoutes from "./routes/teams.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import indicatorsRoutes from "./routes/indicators.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
-import rbacRoutes from "./routes/ Systemadministration/rbac.routes.js"
+import rbacRoutes from "./routes/ Systemadministration/rbac.routes.js";
+import complianceRoutes from "./routes/compliance.routes.js";
+import emailRoutes from "./routes/email.routes.js";
 
 const app = express();
 
@@ -54,12 +56,14 @@ app.use("/api/users", usersRoutes);
 app.use("/api/indicators", indicatorsRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use('/api/rbac', rbacRoutes);
+app.use("/api/compliance", complianceRoutes);
+app.use("/api/email", emailRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
   res.json({
     status: "healthy",
-    service: "ASES Backend",
+    service: "ASES Backend ",
     timestamp: new Date().toISOString(),
   });
 });

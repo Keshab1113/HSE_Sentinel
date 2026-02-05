@@ -386,17 +386,7 @@ function App() {
             </AppShell>
           }
         />
-        <Route
-          path="/system-admin"
-          element={
-            <AppShell user={user} onLogout={handleLogout}>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold">System Administration</h1>
-                <p className="text-muted-foreground">System settings</p>
-              </div>
-            </AppShell>
-          }
-        />
+        
         <Route
           path="/audit-logs"
           element={

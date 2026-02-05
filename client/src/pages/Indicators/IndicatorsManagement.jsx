@@ -29,6 +29,9 @@ import AssignIndicatorModal from "../../components/IndicatorManagement/AssignInd
 import IndicatorDetailsModal from "../../components/IndicatorManagement/IndicatorDetailsModal";
 import AssignedIndicatorsList from "./AssignedIndicatorsList";
 import PermissionChecker from "../../components/SystemAdministration/PermissionChecker"
+import SafetyDashboard from "../../components/IndicatorManagement/SafetyDashboard";
+import ComplianceTracker from "../../components/Compliance/ComplianceTracker";
+import ReportGenerator from "../../components/Reporting/ReportGenerator";
 
 export default function IndicatorsManagement({ user }) {
   const [indicators, setIndicators] = useState({ leading: [], lagging: [] });
@@ -494,6 +497,11 @@ export default function IndicatorsManagement({ user }) {
           />
         </TabsContent>
       </Tabs>
+
+      <SafetyDashboard user={user} />
+
+      <ComplianceTracker user={user} />
+      <ReportGenerator user={user} />
 
       {/* Modals */}
       {showCreateModal && (
