@@ -42,6 +42,8 @@ import DummyWorkersComp from "./pages/Dummy/WorkersComp";
 import DummyAnalytics from "./pages/Dummy/Analytics";
 import SharedIndicatorResult from "./pages/Indicators/SharedIndicatorResult";
 import SystemAdministration from "./pages/SystemAdmin/SystemAdministration/SystemAdministration";
+import CreateRolePage from "./pages/SystemAdmin/SystemAdministration/CreateRoleModal";
+import CreatePermissionPage from "./pages/SystemAdmin/SystemAdministration/CreatePermissionsModal";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -172,6 +174,22 @@ function App() {
           element={
             <AppShell user={user} onLogout={handleLogout}>
               <SystemAdministration user={user} />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/system-admin/create-role"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <CreateRolePage user={user} />
+            </AppShell>
+          }
+        />
+        <Route
+          path="/system-admin/create-permission"
+          element={
+            <AppShell user={user} onLogout={handleLogout}>
+              <CreatePermissionPage user={user} />
             </AppShell>
           }
         />

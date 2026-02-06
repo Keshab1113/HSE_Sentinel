@@ -10,7 +10,8 @@ import {
     grantUserPermission,
     revokeUserPermission,
     getAuditLogs,
-    checkPermission
+    checkPermission,
+    createPermission
 } from '../../controllers/Systemadministration/rbac.controller.js';
 import authenticate from '../../middlewares/auth.middleware.js';
 import checkRole from '../../middlewares/role.middleware.js';
@@ -28,6 +29,7 @@ router.delete('/roles/:id', authenticate, checkRole(['super_admin']), deleteRole
 router.get('/permissions', authenticate, checkRole(['super_admin']), getPermissions);
 router.get('/permissions/user/:userId', authenticate, getUserPermissions);
 router.get('/permissions/check', authenticate, checkPermission);
+router.post('/permissions/create', authenticate, checkRole(['super_admin']), createPermission);
 
 // User permission overrides
 router.post('/permissions/grant', authenticate, checkRole(['super_admin']), grantUserPermission);

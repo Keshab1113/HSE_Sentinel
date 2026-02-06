@@ -14,7 +14,7 @@ export const getRoles = async (req, res) => {
              LEFT JOIN users ON users.role_id = r.id
              WHERE r.is_active = TRUE
              GROUP BY r.id
-             ORDER BY r.hierarchy_level ASC, r.created_at DESC`,
+             ORDER BY r.hierarchy_level ASC, r.created_at DESC`
     );
 
     res.json({
@@ -41,7 +41,7 @@ export const getRoleById = async (req, res) => {
              FROM roles r
              LEFT JOIN users u ON r.created_by = u.id
              WHERE r.id = ?`,
-      [id],
+      [id]
     );
 
     if (roles.length === 0) {
@@ -59,7 +59,7 @@ export const getRoleById = async (req, res) => {
              LEFT JOIN permission_groups pg ON p.group_id = pg.id
              WHERE rp.role_id = ?
              ORDER BY pg.display_order, p.permission_name`,
-      [id],
+      [id]
     );
 
     res.json({
@@ -92,7 +92,7 @@ export const createRole = async (req, res) => {
     // Validate unique role_key
     const [existing] = await connection.execute(
       "SELECT id FROM roles WHERE role_key = ?",
-      [role_key],
+      [role_key]
     );
 
     if (existing.length > 0) {
@@ -106,7 +106,7 @@ export const createRole = async (req, res) => {
     const [result] = await connection.execute(
       `INSERT INTO roles (role_key, role_name, description, hierarchy_level, is_system, created_by, created_at)
              VALUES (?, ?, ?, ?, FALSE, ?, NOW())`,
-      [role_key, role_name, description, hierarchy_level || 3, userId],
+      [role_key, role_name, description, hierarchy_level || 3, userId]
     );
 
     const roleId = result.insertId;
@@ -116,7 +116,7 @@ export const createRole = async (req, res) => {
       const values = permissions.map((permId) => [roleId, permId, userId]);
       await connection.query(
         `INSERT INTO role_permissions (role_id, permission_id, granted_by) VALUES ?`,
-        [values],
+        [values]
       );
     }
 
@@ -129,7 +129,7 @@ export const createRole = async (req, res) => {
         userId,
         JSON.stringify({ role_key, role_name, permissions }),
         req.ip,
-      ],
+      ]
     );
 
     await connection.commit();
@@ -152,7 +152,7 @@ export const createRole = async (req, res) => {
   }
 };
 
-// Update role
+// Update role - MODIFIED TO ALLOW SYSTEM ROLE EDITING
 export const updateRole = async (req, res) => {
   const connection = await pool.getConnection();
   try {
@@ -162,10 +162,10 @@ export const updateRole = async (req, res) => {
     const { role_name, description, hierarchy_level, permissions } = req.body;
     const userId = req.user.id;
 
-    // Check if role exists and is not system role
+    // Check if role exists
     const [roles] = await connection.execute(
       "SELECT * FROM roles WHERE id = ?",
-      [id],
+      [id]
     );
 
     if (roles.length === 0) {
@@ -175,17 +175,13 @@ export const updateRole = async (req, res) => {
       });
     }
 
-    if (roles[0].is_system) {
-      return res.status(403).json({
-        success: false,
-        message: "Cannot modify system roles",
-      });
-    }
+    // REMOVED: System role check - now allows editing system roles
+    // Note: Be cautious when editing system roles in production
 
     // Get old value for audit
     const [oldPermissions] = await connection.execute(
       "SELECT permission_id FROM role_permissions WHERE role_id = ?",
-      [id],
+      [id]
     );
 
     // Update role
@@ -193,7 +189,7 @@ export const updateRole = async (req, res) => {
       `UPDATE roles 
              SET role_name = ?, description = ?, hierarchy_level = ?, updated_at = NOW()
              WHERE id = ?`,
-      [role_name, description, hierarchy_level, id],
+      [role_name, description, hierarchy_level, id]
     );
 
     // Update permissions if provided
@@ -201,7 +197,7 @@ export const updateRole = async (req, res) => {
       // Delete existing permissions
       await connection.execute(
         "DELETE FROM role_permissions WHERE role_id = ?",
-        [id],
+        [id]
       );
 
       // Insert new permissions
@@ -209,7 +205,7 @@ export const updateRole = async (req, res) => {
         const values = permissions.map((permId) => [id, permId, userId]);
         await connection.query(
           `INSERT INTO role_permissions (role_id, permission_id, granted_by) VALUES ?`,
-          [values],
+          [values]
         );
       }
     }
@@ -226,7 +222,7 @@ export const updateRole = async (req, res) => {
         }),
         JSON.stringify({ role_name, permissions }),
         req.ip,
-      ],
+      ]
     );
 
     await connection.commit();
@@ -260,7 +256,7 @@ export const deleteRole = async (req, res) => {
     // Check if role exists and is not system role
     const [roles] = await connection.execute(
       "SELECT * FROM roles WHERE id = ?",
-      [id],
+      [id]
     );
 
     if (roles.length === 0) {
@@ -280,27 +276,43 @@ export const deleteRole = async (req, res) => {
     // Check if any users have this role
     const [users] = await connection.execute(
       "SELECT COUNT(*) as count FROM users WHERE role_id = ?",
-      [id],
+      [id]
     );
 
     if (users[0].count > 0) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete role: ${users[0].count} user(s) still assigned to this role`,
+        message: `Cannot delete role: ${users[0].count} user(s) are currently assigned to this role`,
       });
     }
 
-    // Soft delete
+    // Get role data for audit log
+    const roleData = roles[0];
+
+    // Delete role permissions first
+    await connection.execute("DELETE FROM role_permissions WHERE role_id = ?", [
+      id,
+    ]);
+
+    // Soft delete role
     await connection.execute(
       "UPDATE roles SET is_active = FALSE, updated_at = NOW() WHERE id = ?",
-      [id],
+      [id]
     );
 
     // Audit log
     await connection.execute(
       `INSERT INTO permission_audit_log (action_type, role_id, performed_by, old_value, ip_address, created_at)
              VALUES ('role_deleted', ?, ?, ?, ?, NOW())`,
-      [id, userId, JSON.stringify(roles[0]), req.ip],
+      [
+        id,
+        userId,
+        JSON.stringify({
+          role_key: roleData.role_key,
+          role_name: roleData.role_name,
+        }),
+        req.ip,
+      ]
     );
 
     await connection.commit();
@@ -325,33 +337,30 @@ export const deleteRole = async (req, res) => {
 // Get all permissions grouped
 export const getPermissions = async (req, res) => {
   try {
-    const [permissions] = await pool.execute(
-      `SELECT p.*, pg.group_name, pg.icon, pg.display_order
-             FROM permissions p
-             LEFT JOIN permission_groups pg ON p.group_id = pg.id
-             ORDER BY pg.display_order, p.permission_name`,
+    const [permissionGroups] = await pool.execute(
+      `SELECT pg.*, 
+                    JSON_ARRAYAGG(
+                        JSON_OBJECT(
+                            'id', p.id,
+                            'permission_key', p.permission_key,
+                            'permission_name', p.permission_name,
+                            'description', p.description,
+                            'module', p.module,
+                            'action', p.action
+                        )
+                    ) as permissions
+             FROM permission_groups pg
+             LEFT JOIN permissions p ON pg.id = p.group_id
+             GROUP BY pg.id
+             ORDER BY pg.display_order`
     );
-
-    // Group by permission group
-    const grouped = permissions.reduce((acc, perm) => {
-      const groupKey = perm.group_name || "Other";
-      if (!acc[groupKey]) {
-        acc[groupKey] = {
-          group_name: perm.group_name,
-          icon: perm.icon,
-          display_order: perm.display_order,
-          permissions: [],
-        };
-      }
-      acc[groupKey].permissions.push(perm);
-      return acc;
-    }, {});
 
     res.json({
       success: true,
-      data: Object.values(grouped).sort(
-        (a, b) => (a.display_order || 999) - (b.display_order || 999),
-      ),
+      data: permissionGroups.map((group) => ({
+        ...group,
+        permissions: JSON.parse(group.permissions).filter((p) => p.id !== null),
+      })),
     });
   } catch (error) {
     console.error("Get permissions error:", error);
@@ -370,7 +379,7 @@ export const getUserPermissions = async (req, res) => {
 
     const [user] = await pool.execute(
       "SELECT role_id FROM users WHERE id = ?",
-      [userId],
+      [userId]
     );
 
     if (user.length === 0) {
@@ -386,7 +395,7 @@ export const getUserPermissions = async (req, res) => {
              FROM role_permissions rp
              JOIN permissions p ON rp.permission_id = p.id
              WHERE rp.role_id = ?`,
-      [user[0].role_id],
+      [user[0].role_id]
     );
 
     // Get user overrides
@@ -395,7 +404,7 @@ export const getUserPermissions = async (req, res) => {
              FROM user_permission_overrides upo
              JOIN permissions p ON upo.permission_id = p.id
              WHERE upo.user_id = ? AND (upo.expires_at IS NULL OR upo.expires_at > NOW())`,
-      [userId],
+      [userId]
     );
 
     // Merge permissions with overrides
@@ -459,14 +468,14 @@ export const grantUserPermission = async (req, res) => {
         reason,
         grantedBy,
         expiresAt,
-      ],
+      ]
     );
 
     // Audit log
     await connection.execute(
       `INSERT INTO permission_audit_log (action_type, user_id, permission_id, performed_by, reason, ip_address, created_at)
              VALUES ('user_override', ?, ?, ?, ?, ?, NOW())`,
-      [userId, permissionId, grantedBy, reason, req.ip],
+      [userId, permissionId, grantedBy, reason, req.ip]
     );
 
     await connection.commit();
@@ -501,14 +510,14 @@ export const revokeUserPermission = async (req, res) => {
       `INSERT INTO user_permission_overrides (user_id, permission_id, is_granted, reason, granted_by, created_at)
              VALUES (?, ?, FALSE, ?, ?, NOW())
              ON DUPLICATE KEY UPDATE is_granted = FALSE, reason = ?, granted_by = ?, created_at = NOW()`,
-      [userId, permissionId, reason, revokedBy, reason, revokedBy],
+      [userId, permissionId, reason, revokedBy, reason, revokedBy]
     );
 
     // Audit log
     await connection.execute(
       `INSERT INTO permission_audit_log (action_type, user_id, permission_id, performed_by, reason, ip_address, created_at)
              VALUES ('permission_revoked', ?, ?, ?, ?, ?, NOW())`,
-      [userId, permissionId, revokedBy, reason, req.ip],
+      [userId, permissionId, revokedBy, reason, req.ip]
     );
 
     await connection.commit();
@@ -631,7 +640,7 @@ export async function userHasPermission(userId, permissionKey) {
                 WHERE upo.user_id = ? AND p.permission_key = ? 
                 AND upo.is_granted = FALSE
             ) as has_permission`,
-      [userId, permissionKey, userId, permissionKey, userId, permissionKey],
+      [userId, permissionKey, userId, permissionKey, userId, permissionKey]
     );
 
     return result[0].has_permission === 1;
@@ -640,3 +649,80 @@ export async function userHasPermission(userId, permissionKey) {
     return false;
   }
 }
+
+// Add this function to your rbac.controller.js file
+
+export const createPermission = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const { permission_key, permission_name, description, module, action, group_id } = req.body;
+    const userId = req.user.id;
+
+    // Validate unique permission_key
+    const [existing] = await connection.execute(
+      "SELECT id FROM permissions WHERE permission_key = ?",
+      [permission_key]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Permission key already exists",
+      });
+    }
+
+    // Validate group exists
+    const [group] = await connection.execute(
+      "SELECT id FROM permission_groups WHERE id = ?",
+      [group_id]
+    );
+
+    if (group.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid permission group",
+      });
+    }
+
+    // Create permission
+    const [result] = await connection.execute(
+      `INSERT INTO permissions (permission_key, permission_name, description, module, action, group_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [permission_key, permission_name, description, module, action, group_id]
+    );
+
+    const permissionId = result.insertId;
+
+    // Audit log
+    await connection.execute(
+      `INSERT INTO permission_audit_log (action_type, permission_id, performed_by, new_value, ip_address, created_at)
+       VALUES ('permission_created', ?, ?, ?, ?, NOW())`,
+      [
+        permissionId,
+        userId,
+        JSON.stringify({ permission_key, permission_name, module, action }),
+        req.ip,
+      ]
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      permission_id: permissionId,
+      message: "Permission created successfully",
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Create permission error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create permission",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+};
