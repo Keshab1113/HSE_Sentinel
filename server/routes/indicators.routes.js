@@ -1,3 +1,4 @@
+// routes/indicators.routes.js - Add this new route
 import { Router } from "express";
 import {
   uploadAndAnalyze,
@@ -16,7 +17,8 @@ import {
   getIndicatorResults,
   shareIndicatorResult,
   getSharedIndicatorResult,
-  getIndicatorDetails
+  getIndicatorDetails,
+  getRiskPredictions  // Add this import
 } from "../controllers/indicators.controller.js";
 import authenticate from "../middlewares/auth.middleware.js";
 import checkRole from "../middlewares/role.middleware.js";
@@ -51,7 +53,14 @@ router.put(
 router.get(
   "/:id/details",
   authenticate,
-  getIndicatorDetails, // You'll need to create this controller function
+  getIndicatorDetails,
+);
+
+// Add this new route for risk predictions
+router.get(
+  "/:id/predictions",
+  authenticate,
+  getRiskPredictions  // You'll create this controller
 );
 
 router.delete(

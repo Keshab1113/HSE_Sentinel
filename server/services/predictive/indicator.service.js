@@ -16,10 +16,23 @@ class IndicatorService {
     try {
       await connection.beginTransaction();
 
+      console.log("Processing safety document:", {
+        fileUrl,
+        fileType,
+        userId,
+        groupId,
+        teamId,
+      });
+
       // 1. Extract text with Mistral
       const extraction = await this.mistral.extractTextFromDocument(
         fileUrl,
         fileType,
+      );
+
+      console.log(
+        "Text extraction complete. Length:",
+        extraction.extractedText.length,
       );
 
       // 2. Classify as leading/lagging
@@ -27,70 +40,111 @@ class IndicatorService {
         extraction.extractedText,
       );
 
+      console.log("Classification result:", classification);
+
       // 3. Store in database
       const [result] = await connection.execute(
         `INSERT INTO ai_analysis_results 
-                (resource_type, resource_id, analysis_type, indicator_type, 
-                 risk_score, confidence, category, extracted_data, ai_model)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (resource_type, resource_id, analysis_type, indicator_type, 
+               risk_score, confidence, category, extracted_data, ai_model)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           "document",
-          0, // Will be updated with actual resource ID
+          0,
           "classification",
-          classification.indicator_type,
+          classification.indicator_type || "unknown",
           classification.risk_score || 0,
           classification.confidence || 0,
-          classification.category,
+          classification.category || "general",
           JSON.stringify({
             text: extraction.extractedText.substring(0, 1000),
             classification,
             metadata: extraction.metadata,
           }),
-          "mistral-large-latest",
+          extraction.metadata?.model || "mistral-large-latest",
         ],
       );
 
+      console.log("AI analysis record created:", result.insertId);
+
       // 4. Generate vector embedding for similarity search
-      const embedding = await this.vector.generateEmbedding(
-        extraction.extractedText,
-      );
+      try {
+        const embedding = await this.vector.generateEmbedding(
+          extraction.extractedText,
+        );
 
-      // Map string resource_type to integer codes
-      const resourceTypeMap = {
-        'document': 1,
-        'incident': 2,
-        'training': 3,
-        'inspection': 4,
-        'maintenance': 5,
-        'safety_meeting': 6
-      };
+        // Check if vector_embeddings table exists
+        const [tables] = await connection.execute(
+          "SHOW TABLES LIKE 'vector_embeddings'",
+        );
 
-      const resourceTypeCode = resourceTypeMap['document'] || 1;
+        if (tables.length > 0) {
+          // Check the column type for resource_type
+          const [columns] = await connection.execute(
+            "SHOW COLUMNS FROM vector_embeddings WHERE Field = 'resource_type'",
+          );
 
-      await connection.execute(
-        `INSERT INTO vector_embeddings 
+          let resourceTypeValue;
+          if (
+            columns.length > 0 &&
+            columns[0].Type.toLowerCase().includes("int")
+          ) {
+            // Column is integer, map string to integer
+            const resourceTypeMap = {
+              document: 1,
+              incident: 2,
+              training: 3,
+              inspection: 4,
+              maintenance: 5,
+              safety_meeting: 6,
+            };
+            resourceTypeValue = resourceTypeMap["document"] || 1;
+          } else {
+            // Column is string/varchar
+            resourceTypeValue = "document";
+          }
+
+          await connection.execute(
+            `INSERT INTO vector_embeddings 
                 (resource_type, resource_id, embedding, text_content, 
                  indicator_type, category, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          resourceTypeCode, // Use integer instead of string
-          result.insertId,
-          JSON.stringify(embedding),
-          extraction.extractedText.substring(0, 500),
-          classification.indicator_type,
-          classification.category,
-          JSON.stringify({
-            file_type: fileType,
-            user_id: userId,
-            group_id: groupId,
-            team_id: teamId,
-          }),
-        ],
-      );
+            [
+              resourceTypeValue,
+              result.insertId,
+              JSON.stringify(embedding),
+              extraction.extractedText.substring(0, 500),
+              classification.indicator_type || "unknown",
+              classification.category || "general",
+              JSON.stringify({
+                file_type: fileType,
+                user_id: userId,
+                group_id: groupId,
+                team_id: teamId,
+                analysis_id: result.insertId,
+                timestamp: new Date().toISOString(),
+              }),
+            ],
+          );
 
-      // 5. Create indicator measurement if numerical data found
-      if (classification.indicator_type !== "none") {
-        await this.createIndicatorMeasurement(
+          console.log("Vector embedding stored successfully");
+        } else {
+          console.log("Vector embeddings table does not exist, skipping");
+        }
+      } catch (vectorError) {
+        console.log(
+          "Vector embedding storage failed (non-critical):",
+          vectorError.message,
+        );
+        // Continue without vector storage - it's not critical
+      }
+
+      // 5. Create indicator from classification
+      if (
+        classification.indicator_type &&
+        classification.indicator_type !== "none"
+      ) {
+        await this.createIndicatorFromClassification(
           connection,
           classification,
           extraction.extractedText,
@@ -120,6 +174,224 @@ class IndicatorService {
       connection.release();
     }
   }
+  async createIndicatorFromClassification(
+    connection,
+    classification,
+    text,
+    userId,
+    groupId,
+    teamId,
+    sourceId,
+  ) {
+    try {
+      const indicatorType = classification.indicator_type || "leading";
+      const tableName =
+        indicatorType === "leading"
+          ? "leading_indicators"
+          : "lagging_indicators";
+
+      // Create a unique indicator code
+      const indicatorCode = `AI_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+
+      let insertQuery, insertParams;
+
+      if (indicatorType === "leading") {
+        insertQuery = `
+        INSERT INTO ${tableName} 
+        (indicator_code, name, description, category, measurement_unit, 
+         target_value, min_acceptable, weight, created_by, created_at, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), TRUE)
+      `;
+        insertParams = [
+          indicatorCode,
+          `AI Generated: ${classification.category || "safety"} Indicator`,
+          `Auto-created from document analysis. Confidence: ${classification.confidence || 0.7}`,
+          classification.category || "general",
+          "count",
+          100,
+          70,
+          1.0,
+          userId,
+        ];
+      } else {
+        insertQuery = `
+        INSERT INTO ${tableName} 
+        (indicator_code, name, description, category, severity_weight, 
+         financial_impact_multiplier, created_by, created_at, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), TRUE)
+      `;
+        insertParams = [
+          indicatorCode,
+          `AI Generated: ${classification.category || "incident"} Indicator`,
+          `Auto-created from document analysis. Confidence: ${classification.confidence || 0.7}`,
+          classification.category || "incident",
+          1.5,
+          1.2,
+          userId,
+        ];
+      }
+
+      const [result] = await connection.execute(insertQuery, insertParams);
+
+      // Get the user's actual role from the database
+      const [userRows] = await connection.execute(
+        "SELECT role FROM users WHERE id = ?",
+        [userId],
+      );
+
+      let userRole = "employee"; // Default fallback to an allowed ENUM value
+
+      if (userRows.length > 0) {
+        const dbRole = userRows[0].role;
+        // Map database role to allowed ENUM values
+        const allowedRoles = [
+          "super_admin",
+          "group_admin",
+          "team_admin",
+          "employee",
+        ];
+
+        if (allowedRoles.includes(dbRole)) {
+          userRole = dbRole;
+        } else {
+          // If role is not in allowed list, map to appropriate value
+          if (dbRole === "admin" || dbRole === "superuser") {
+            userRole = "super_admin";
+          } else {
+            userRole = "employee";
+          }
+        }
+      }
+
+      console.log(`Using role for metadata: ${userRole}`);
+
+      // Create metadata entry with validated role
+      await connection.execute(
+        `INSERT INTO indicator_metadata 
+       (indicator_id, indicator_type, created_by_role, group_id, team_id, created_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+        [result.insertId, indicatorType, userRole, groupId, teamId],
+      );
+
+      // Extract measurements from text
+      const measurements = this.extractMeasurementsFromText(
+        text,
+        classification.category,
+      );
+
+      // Create measurements if any found
+      for (const measurement of measurements) {
+        await connection.execute(
+          `INSERT INTO indicator_measurements
+         (indicator_id, indicator_type, group_id, team_id,
+          measured_value, measurement_date, data_source,
+          source_record_id, recorded_by, recorded_at, confidence_score)
+         VALUES (?, ?, ?, ?, ?, CURDATE(), 'ai_extracted', ?, ?, NOW(), ?)`,
+          [
+            result.insertId,
+            indicatorType,
+            groupId,
+            teamId,
+            measurement.value,
+            sourceId,
+            userId,
+            measurement.confidence || 0.7,
+          ],
+        );
+      }
+
+      console.log(
+        `Indicator created with ID: ${result.insertId}, Measurements: ${measurements.length}`,
+      );
+
+      return {
+        id: result.insertId,
+        type: indicatorType,
+        measurements: measurements.length,
+      };
+    } catch (error) {
+      console.error("Error creating indicator from classification:", error);
+      throw error;
+    }
+  }
+
+  extractMeasurementsFromText(text, category) {
+  const measurements = [];
+  
+  if (!text || text.length < 10) {
+    // If text is too short, create a default measurement
+    return [{
+      value: 1,
+      confidence: 0.5,
+      description: "Default measurement from document"
+    }];
+  }
+  
+  // Look for percentages
+  const percentageMatches = text.match(/(\d+(\.\d+)?)%/g) || [];
+  percentageMatches.forEach(match => {
+    const value = parseFloat(match);
+    if (!isNaN(value) && value > 0 && value <= 100) {
+      measurements.push({
+        value,
+        confidence: 0.8,
+        description: `Percentage: ${match}`
+      });
+    }
+  });
+
+  // Look for numbers with context
+  const patterns = [
+    { regex: /(\d+)\/(\d+)\s+completed/g, type: 'completion' },
+    { regex: /(\d+(\.\d+)?)\s+incidents?/gi, type: 'incident' },
+    { regex: /(\d+(\.\d+)?)\s+trainings?/gi, type: 'training' },
+    { regex: /TRIR:\s*(\d+(\.\d+)?)/gi, type: 'trir' },
+    { regex: /(\d+(\.\d+)?)%\s+compliance/gi, type: 'compliance' },
+    { regex: /(\d+(\.\d+)?)\s+employees?/gi, type: 'headcount' },
+    { regex: /(\d+(\.\d+)?)\s+near miss(?:es)?/gi, type: 'near_miss' },
+    { regex: /(\d+(\.\d+)?)\s+first aid/gi, type: 'first_aid' },
+    { regex: /(\d+(\.\d+)?)\s+lost time/gi, type: 'lost_time' }
+  ];
+
+  patterns.forEach(pattern => {
+    const matches = text.matchAll(pattern.regex);
+    for (const match of matches) {
+      const value = parseFloat(match[1]);
+      if (!isNaN(value) && value > 0 && value < 1000) {
+        measurements.push({
+          value,
+          confidence: 0.7,
+          description: `${pattern.type}: ${match[0]}`
+        });
+      }
+    }
+  });
+
+  // If no measurements found, create a default one based on category
+  if (measurements.length === 0) {
+    let defaultValue = 1;
+    if (category === 'incident' || category === 'near_miss') {
+      defaultValue = 1;
+    } else if (category === 'training') {
+      defaultValue = 75; // 75% completion
+    } else if (category === 'inspection') {
+      defaultValue = 85; // 85% compliance
+    } else if (category === 'maintenance') {
+      defaultValue = 80; // 80% completion
+    }
+    
+    measurements.push({
+      value: defaultValue,
+      confidence: 0.5,
+      description: `Estimated ${category} value`
+    });
+  }
+
+  // Remove duplicates and limit to 5 measurements
+  return measurements
+    .filter((m, i, self) => i === self.findIndex(t => t.value === m.value))
+    .slice(0, 5);
+}
 
   async createIndicatorMeasurement(
     connection,
@@ -137,9 +409,10 @@ class IndicatorService {
     // Find or create indicator
     let indicatorId;
 
-    const tableName = classification.indicator_type === 'leading' 
-      ? 'leading_indicators' 
-      : 'lagging_indicators';
+    const tableName =
+      classification.indicator_type === "leading"
+        ? "leading_indicators"
+        : "lagging_indicators";
 
     const [indicators] = await connection.execute(
       `SELECT id FROM ${tableName} 

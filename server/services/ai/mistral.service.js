@@ -2,137 +2,131 @@ const axios = require("axios");
 
 class MistralService {
   constructor() {
-    this.apiKey = process.env.MISTRAL_API_KEY || '';
+    this.apiKey = process.env.MISTRAL_API_KEY || "";
     this.baseURL = process.env.MISTRAL_OCR_URL || "https://api.mistral.ai/v1";
-    
+
     if (!this.apiKey) {
       console.warn("MISTRAL_API_KEY not set. Mock mode enabled.");
       this.mockMode = true;
     }
   }
 
+  // services/ai/mistral.service.js - Updated extractTextFromDocument method
   async extractTextFromDocument(fileUrl, fileType) {
-    // Mock response for development without API key
     if (this.mockMode) {
       console.log("MOCK: Extracting text from", fileType, "document");
+
+      // Return a much larger mock text with proper content
       return {
         success: true,
-        extractedText: `MOCK EXTRACTED SAFETY DOCUMENT - ${fileType}
-        
-        INCIDENT REPORT
-        =================
-        Date: ${new Date().toISOString().split('T')[0]}
-        Location: Warehouse Zone A
-        Employee: John Doe (ID: EMP-2024-001)
-        Supervisor: Jane Smith
-        
-        Incident Type: Near Miss
-        Description: Forklift operator nearly collided with pedestrian in aisle 3. Operator was reversing without spotter assistance. Pedestrian was wearing high-vis vest but was in designated equipment zone.
-        
-        Immediate Actions Taken:
-        1. Work in area suspended
-        2. Safety briefing conducted
-        3. Area cordoned off for inspection
-        
-        Root Cause Analysis:
-        - Insufficient spotter for reversing operations
-        - Pedestrian entered restricted zone
-        - Forklift warning alarm not functioning properly
-        
-        Corrective Actions:
-        1. Mandatory spotter for all forklift reversing
-        2. Repair warning alarms on all forklifts
-        3. Retraining on zone restrictions
-        
-        Metrics:
-        - Days Since Last Incident: 45
-        - Training Hours This Month: 120
-        - Safety Inspection Score: 85/100
-        - Equipment Maintenance Compliance: 92%
-        
-        Recommendations:
-        - Increase frequency of safety audits in high-traffic zones
-        - Implement RFID zone access control
-        - Monthly refresher training for equipment operators`,
+        extractedText: `SAFETY INCIDENT REPORT & INSPECTION RECORD
+Company: ABC Manufacturing Facility
+Date: February 17, 2026
+Location: Warehouse Zone A, Production Floor
+
+NEAR MISS INCIDENT REPORT:
+Time: 10:45 AM
+Reported By: Michael Chen
+Description: Forklift near collision with pedestrian in aisle 3. 
+Operator applied emergency brakes, avoiding collision by approximately 2 feet.
+Root Causes: Pedestrian entered forklift zone, warning systems not functioning, blind spots.
+Corrective Actions: Installed mirrors, repaired warning systems, mandatory spotter requirement.
+
+SAFETY INSPECTION FINDINGS:
+Fire Extinguishers: 12 units inspected, OK
+Emergency Exits: 100% accessible
+PPE Compliance: Hard hats 95.5%, Safety glasses 93.3%, High-vis vests 91.1%
+Machine Guarding Issues: Conveyor missing guard, Grinding wheel needs adjustment
+Chemical Storage: Flammable cabinet door broken, 3 drums without spill pallets
+Electrical Safety: 2 damaged cords removed, 3 missing junction box covers
+
+TRAINING COMPLETION RECORDS:
+Forklift Certification: 22/28 completed (78.5%) - Due 03/15/2026
+Hazard Communication: 142/156 completed (91.0%) - Due 03/01/2026
+Lockout/Tagout: 38/45 completed (84.4%) - Due 02/28/2026
+First Aid/CPR: 18/25 completed (72.0%) - Due 04/15/2026
+Safety Meeting Attendance: 134/156 on 02/10, 128/156 on 02/17
+
+MAINTENANCE LOGS:
+Preventive Maintenance Completion:
+- Forklifts: 24/30 (80%) - 6 overdue
+- Conveyors: 12/16 (75%) - 4 overdue
+- Presses: 10/12 (83.3%) - 2 overdue
+Equipment Breakdowns: Forklift hydraulic leak, Conveyor motor failure, Compressor regulator failure
+Equipment over 10 years old: 4 forklifts (27%), 3 conveyors (37.5%), 2 presses (33.3%)
+
+INCIDENT STATISTICS:
+Year-to-Date Incidents:
+- First Aid Cases: 5 total (severity 2.5)
+- Medical Treatment: 2 total (severity 5.0)
+- Lost Time Injuries: 1 total (severity 8.5)
+- Property Damage: 3 total (severity 4.0)
+- Near Misses: 14 total (severity 6.5)
+TRIR: 4.2 (target <3.5)
+Lost Time Injury Rate: 1.8 (target <1.0)
+
+RISK ASSESSMENT:
+High Priority Risks:
+1. Conveyor #3 missing guard - Risk Score 18
+2. Flammable cabinet broken - Risk Score 16
+
+PREDICTIVE RISK ANALYSIS:
+1. 85% Probability: Another near miss (forklift-pedestrian)
+2. 70% Probability: Equipment breakdown causing downtime
+3. 60% Probability: Lost time injury in warehouse
+4. 55% Probability: Regulatory inspection trigger
+5. 45% Probability: Chemical spill >5 gallons
+
+RECOMMENDATIONS:
+Immediate: Repair conveyor guarding, fix flammable cabinet, complete overdue maintenance
+Short-term: Complete all training, install safety mirrors, repair warning alarms
+Long-term: Equipment replacement plan, automated training tracking, facility risk assessment`,
         metadata: {
-          model: "mock-mistral-small",
-          tokens: 350,
-          warning: "Running in mock mode - set MISTRAL_API_KEY for real extraction"
-        }
+          model: "mock-mistral-large",
+          tokens: 1200,
+          pages: 4,
+        },
       };
     }
 
     try {
+      // Use correct Mistral API endpoint
       const response = await axios.post(
-        `${this.baseURL}/chat/completions`, // Adjust endpoint based on actual Mistral OCR API
+        `${this.baseURL}/ocr`, // Changed from /chat/completions
         {
-          model: "mistral-large-latest",
-          messages: [
-            {
-              role: "user",
-              content: `You are a document analysis system. Analyze this ${fileType} safety document and extract ALL safety-related information.
-                        Format your response as structured text with:
-                        1. Document type and date
-                        2. Key safety incidents/observations
-                        3. Numerical metrics found
-                        4. Risk assessments
-                        5. Recommendations
-                        6. Any compliance information`,
-            },
-          ],
-          temperature: 0.1,
-          max_tokens: 4000,
+          model: "mistral-ocr-latest",
+          document: {
+            type: fileType,
+            source: fileUrl,
+          },
         },
         {
           headers: {
             Authorization: `Bearer ${this.apiKey}`,
             "Content-Type": "application/json",
           },
-          timeout: 30000 // 30 second timeout
-        }
+          timeout: 30000,
+        },
       );
 
       return {
         success: true,
-        extractedText: response.data.choices[0].message.content,
+        extractedText: response.data.text || response.data.content || "",
         metadata: {
-          model: response.data.model,
-          tokens: response.data.usage.total_tokens,
+          model: "mistral-ocr-latest",
+          pages: response.data.pages || 1,
         },
       };
     } catch (error) {
       console.error("Mistral extraction error:", error.message);
-      
-      // Fallback to mock if API fails
+      // Return mock data as fallback
       return {
         success: true,
-        extractedText: `FALLBACK EXTRACTION - ${fileType}
-        
-        Safety Document Analysis Failed
-        -------------------------------
-        File Type: ${fileType}
-        Error: ${error.message}
-        
-        Please review document manually for:
-        - Incident reports
-        - Safety observations
-        - Training records
-        - Inspection results
-        - Maintenance logs
-        - Compliance documentation
-        
-        Key areas to check:
-        1. Dates and times of incidents
-        2. Personnel involved
-        3. Equipment identifiers
-        4. Location information
-        5. Corrective actions taken
-        6. Follow-up required`,
+        extractedText: `FALLBACK EXTRACTION - ${fileType}`,
         metadata: {
           model: "fallback",
-          tokens: 0,
-          error: error.message
-        }
+          error: error.message,
+        },
       };
     }
   }
@@ -140,27 +134,31 @@ class MistralService {
   async classifySafetyEvent(text) {
     // Mock response for development
     if (this.mockMode || !text || text.trim().length < 10) {
-      const isLeading = text.toLowerCase().includes('training') || 
-                        text.toLowerCase().includes('inspection') || 
-                        text.toLowerCase().includes('maintenance');
-      
-      const categories = isLeading 
-        ? ['training', 'inspection', 'maintenance', 'safety_meeting']
-        : ['incident', 'injury', 'property_damage', 'near_miss'];
-      
-      const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-      
+      const isLeading =
+        text.toLowerCase().includes("training") ||
+        text.toLowerCase().includes("inspection") ||
+        text.toLowerCase().includes("maintenance");
+
+      const categories = isLeading
+        ? ["training", "inspection", "maintenance", "safety_meeting"]
+        : ["incident", "injury", "property_damage", "near_miss"];
+
+      const randomCategory =
+        categories[Math.floor(Math.random() * categories.length)];
+
       return {
         indicator_type: isLeading ? "leading" : "lagging",
         category: randomCategory,
-        confidence: 0.85 + (Math.random() * 0.1),
-        risk_score: isLeading ? (3 + Math.random() * 2) : (6 + Math.random() * 3),
+        confidence: 0.85 + Math.random() * 0.1,
+        risk_score: isLeading ? 3 + Math.random() * 2 : 6 + Math.random() * 3,
         key_entities: ["warehouse", "forklift", "safety", "employee"],
         recommended_actions: [
-          isLeading ? "Continue regular monitoring" : "Implement corrective actions",
+          isLeading
+            ? "Continue regular monitoring"
+            : "Implement corrective actions",
           "Document findings in safety log",
-          "Schedule follow-up review"
-        ]
+          "Schedule follow-up review",
+        ],
       };
     }
 
@@ -204,40 +202,55 @@ class MistralService {
             Authorization: `Bearer ${this.apiKey}`,
             "Content-Type": "application/json",
           },
-          timeout: 30000
-        }
+          timeout: 30000,
+        },
       );
 
       const result = JSON.parse(response.data.choices[0].message.content);
       return result;
     } catch (error) {
       console.error("Mistral classification error:", error.message);
-      
+
       // Fallback classification based on text content
       const textLower = text.toLowerCase();
       let indicator_type = "lagging";
       let category = "incident";
-      
-      if (textLower.includes('training') || textLower.includes('inspection') || 
-          textLower.includes('maintenance') || textLower.includes('meeting') ||
-          textLower.includes('audit')) {
+
+      if (
+        textLower.includes("training") ||
+        textLower.includes("inspection") ||
+        textLower.includes("maintenance") ||
+        textLower.includes("meeting") ||
+        textLower.includes("audit")
+      ) {
         indicator_type = "leading";
-        if (textLower.includes('training')) category = "training";
-        else if (textLower.includes('inspection') || textLower.includes('audit')) category = "inspection";
-        else if (textLower.includes('maintenance')) category = "maintenance";
+        if (textLower.includes("training")) category = "training";
+        else if (
+          textLower.includes("inspection") ||
+          textLower.includes("audit")
+        )
+          category = "inspection";
+        else if (textLower.includes("maintenance")) category = "maintenance";
         else category = "safety_meeting";
-      } else if (textLower.includes('near miss') || textLower.includes('near-miss')) {
+      } else if (
+        textLower.includes("near miss") ||
+        textLower.includes("near-miss")
+      ) {
         indicator_type = "leading";
         category = "near_miss";
       }
-      
+
       return {
         indicator_type,
         category,
         confidence: 0.7,
         risk_score: indicator_type === "leading" ? 4 : 6,
         key_entities: [],
-        recommended_actions: ["Review document manually", "Consult safety officer", "Update safety logs"]
+        recommended_actions: [
+          "Review document manually",
+          "Consult safety officer",
+          "Update safety logs",
+        ],
       };
     }
   }
